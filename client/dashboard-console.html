@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Demo - External JavaScript Configuration</title>
+    <script>
+        (() => {
+            const storageKey = 'sanbot-client-theme';
+            let theme = null;
+            try {
+                theme = localStorage.getItem(storageKey);
+            } catch (error) {
+                // Local storage may be unavailable for local files.
+            }
+            if (theme !== 'dark' && theme !== 'light') {
+                theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.dataset.theme = theme;
+            document.addEventListener('DOMContentLoaded', () => {
+                const button = document.getElementById('themeToggle');
+                if (!button) return;
+                const updateButton = () => {
+                    const dark = document.documentElement.dataset.theme === 'dark';
+                    button.textContent = dark ? 'Light mode' : 'Dark mode';
+                    button.setAttribute('aria-pressed', String(dark));
+                };
+                button.addEventListener('click', () => {
+                    document.documentElement.dataset.theme =
+                        document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+                    try {
+                        localStorage.setItem(storageKey, document.documentElement.dataset.theme);
+                    } catch (error) {
+                        // The selected theme still applies to the current page.
+                    }
+                    updateButton();
+                });
+                updateButton();
+            });
+        })();
+    </script>
+    <script>
+        // Edit these values when the robot address or bridge API key changes.
+        const SANBOT_BRIDGE_IP_ADDRESS = '10.30.12.134';
+        const SANBOT_BRIDGE_API_KEY = 'sanbot-bridge';
+    </script>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f3f4f6;
+            --bg-2: #e5e7eb;
+            --panel: #ffffff;
+            --panel-strong: #ffffff;
+            --panel-soft: #eff6ff;
+            --control: #ffffff;
+            --surface-soft: #f8fafc;
+            --ink: #111827;
+            --muted: #4b5563;
+            --border: #cbd5e1;
+            --primary: #2563eb;
+            --secondary: #0f766e;
+            --danger: #b91c1c;
+            --ok: #15803d;
+            --warn: #b45309;
+            --on-accent: #ffffff;
+            --mono: Consolas, "SFMono-Regular", monospace;
+            --sans: "Segoe UI", "Trebuchet MS", sans-serif;
+        }
+
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --bg: #0f172a;
+            --bg-2: #111827;
+            --panel: #1e293b;
+            --panel-strong: #1e293b;
+            --panel-soft: #172554;
+            --control: #0f172a;
+            --surface-soft: #111827;
+            --ink: #e5e7eb;
+            --muted: #94a3b8;
+            --border: #475569;
+            --primary: #60a5fa;
+            --secondary: #2dd4bf;
+            --danger: #f87171;
+            --ok: #4ade80;
+            --warn: #fbbf24;
+            --on-accent: #0f172a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 24px;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: var(--sans);
+        }
+
+        .shell {
+            max-width: 1120px;
+            margin: 0 auto;
+        }
+
+        .suite-nav {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .suite-link {
+            display: inline-flex;
+            align-items: center;
+            min-height: 38px;
+            padding: 0 14px;
+            border: 1px solid var(--border);
+            background: var(--control);
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.86rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+
+        .suite-link.current {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: var(--on-accent);
+        }
+
+        h1 {
+            margin: 0 0 18px;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .status {
+            min-height: 34px;
+            padding: 7px 11px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--panel);
+            color: var(--muted);
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .status.ok {
+            border-color: rgba(21, 128, 61, 0.22);
+            color: var(--ok);
+        }
+
+        .status.error {
+            border-color: rgba(185, 28, 28, 0.22);
+            color: var(--danger);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--panel);
+            border: 1px solid var(--border);
+        }
+
+        td {
+            padding: 8px;
+            border: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .label-cell {
+            background: #eef4f8;
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .button-cell {
+            text-align: center;
+            width: 16.666%;
+        }
+
+        button {
+            width: 100%;
+            min-height: 38px;
+            border: 0;
+            border-radius: 6px;
+            background: var(--primary);
+            color: #ffffff;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        button:hover {
+            filter: brightness(1.05);
+        }
+
+        button:disabled {
+            cursor: default;
+            opacity: 0.56;
+        }
+
+        .secondary {
+            background: var(--secondary);
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 160px;
+            gap: 8px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            min-height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font: inherit;
+        }
+
+        .log {
+            min-height: 160px;
+            max-height: 280px;
+            margin: 14px 0 0;
+            padding: 12px;
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: #111827;
+            color: #e5e7eb;
+            font-family: var(--mono);
+            font-size: 0.85rem;
+            line-height: 1.45;
+            white-space: pre-wrap;
+        }
+
+        @media (max-width: 760px) {
+            body {
+                padding: 14px;
+            }
+
+            table,
+            tbody,
+            tr,
+            td {
+                display: block;
+                width: 100%;
+            }
+
+            .button-cell {
+                width: 100%;
+            }
+
+            .input-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        html,
+        body {
+            min-height: 100%;
+            background: linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+        }
+
+        body * {
+            border-radius: 0 !important;
+        }
+
+        button {
+            color: var(--on-accent);
+        }
+
+        .theme-toggle {
+            width: auto;
+            min-width: 116px;
+            min-height: 40px;
+            margin-left: auto;
+            padding: 0 14px;
+            border: 1px solid var(--border);
+            background: var(--control);
+            color: var(--ink);
+        }
+
+        input[type="text"] {
+            background: var(--control);
+            color: var(--ink);
+        }
+
+        .label-cell {
+            background: var(--surface-soft);
+        }
+
+        .log {
+            background: var(--surface-soft);
+            color: var(--ink);
+        }
+    </style>
+    <script>
+// Edit labels, button text, and JSON payload templates here.
+// Supported placeholders: {{requestId}}, {{apiKey}}, and {{input}}.
+window.SANBOT_DEMO_CONFIG = {
+    title: 'Robot Demo',
+    topRow: {
+        connectText: 'Connect',
+        authorizeText: 'Authorize'
+    },
+    rows: [
+        {
+            label: 'Head',
+            buttons: [
+                {
+                    text: 'Turn Left',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'head',
+                        action: 'turn',
+                        data: {
+                            direction: 'left',
+                            angle: 90
+                        }
+                    }
+                },
+                {
+                    text: 'Turn Right',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'head',
+                        action: 'turn',
+                        data: {
+                            direction: 'right',
+                            angle: 90
+                        }
+                    }
+                },
+                {
+                    text: 'Nod Up',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'head',
+                        action: 'nod',
+                        data: {
+                            direction: 'up',
+                            angle: 15
+                        }
+                    }
+                },
+                {
+                    text: 'Nod Down',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'head',
+                        action: 'nod',
+                        data: {
+                            direction: 'down',
+                            angle: 15
+                        }
+                    }
+                },
+                {
+                    text: 'Head Stop',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'head',
+                        action: 'stop',
+                        data: {}
+                    }
+                },
+                {
+                    text: 'Head Reset',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'head',
+                        action: 'reset',
+                        data: {}
+                    }
+                }
+            ]
+        },
+        {
+            label: 'Face',
+            buttons: [
+                {
+                    text: 'Angry',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'face',
+                        action: 'emotion',
+                        data: {
+                            emotion: 'angry',
+                            duration: 30
+                        }
+                    }
+                },
+                {
+                    text: 'Surprise',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'face',
+                        action: 'emotion',
+                        data: {
+                            emotion: 'surprise',
+                            duration: 30
+                        }
+                    }
+                },
+                {
+                    text: 'Laugh',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'face',
+                        action: 'emotion',
+                        data: {
+                            emotion: 'laughter',
+                            duration: 30
+                        }
+                    }
+                },
+                {
+                    text: 'Cry',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'face',
+                        action: 'emotion',
+                        data: {
+                            emotion: 'cry',
+                            duration: 30
+                        }
+                    }
+                },
+                {
+                    text: 'Smile',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'face',
+                        action: 'emotion',
+                        data: {
+                            emotion: 'smile',
+                            duration: 30
+                        }
+                    }
+                },
+                {
+                    text: 'Normal',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'face',
+                        action: 'emotion',
+                        data: {
+                            emotion: 'normal',
+                            duration: 3600
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            label: 'Arms',
+            buttons: [
+                {
+                    text: 'Left Up',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'arms',
+                        action: 'move',
+                        data: {
+                            side: 'left',
+                            direction: 'up'
+                        }
+                    }
+                },
+                {
+                    text: 'Right Up',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'arms',
+                        action: 'move',
+                        data: {
+                            side: 'right',
+                            direction: 'up'
+                        }
+                    }
+                },
+                {
+                    text: 'Both Up Slow',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'arms',
+                        action: 'move',
+                        data: {
+                            side: 'both',
+                            speed: 1,
+                            direction: 'up',
+                            angle: 30
+                        }
+                    }
+                },
+                {
+                    text: 'Both Down',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'arms',
+                        action: 'move',
+                        data: {
+                            side: "both",
+                            angle: 180
+                        }
+                    }
+                },
+                {
+                    text: 'Stop',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'arms',
+                        action: 'stop',
+                        data: {
+                            part: 'both'
+                        }
+                    }
+                },
+                {
+                    text: 'Reset',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'arms',
+                        action: 'reset',
+                        data: {
+                            part: 'both'
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            label: 'Light',
+            buttons: [
+                {
+                    text: 'Head Light',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'head',
+                        action: 'whitelight',
+                        data: {
+                            on: true,
+                            brightness: 3
+                        }
+                    }
+                },
+                {
+                    text: 'Leds Red',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'led',
+                        action: 'set',
+                        data: {
+                            part: 'all',
+                            color: 'red'
+                        }
+                    }
+                },
+                {
+                    text: 'Leds Blue',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'led',
+                        action: 'set',
+                        data: {
+                            part: 'all',
+                            color: 'blue'
+                        }
+                    }
+                },
+                {
+                    text: 'Leds Green Flicker',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'led',
+                        action: 'set',
+                        data: {
+                            part: 'all',
+                            color: 'green',
+                            flicker: 5
+                        }
+                    }
+                },
+                {
+                    text: 'Leds Random',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'led',
+                        action: 'set',
+                        data: {
+                            part: 'all',
+                            flicker: 2,
+                            random: 7
+                        }
+                    }
+                },
+                {
+                    text: 'Leds Off',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'led',
+                        action: 'set',
+                        data: {
+                            part: 'all',
+                            color: 'off'
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            label: 'Speech',
+            buttons: [
+                {
+                    text: 'English',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'speech',
+                        action: 'config',
+                        data: {
+                            language: 'english'
+                        }
+                    }
+                },
+                {
+                    text: 'German',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'speech',
+                        action: 'config',
+                        data: {
+                            language: 'german'
+                        }
+                    }
+                },
+                {
+                    text: 'Dutch',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'speech',
+                        action: 'config',
+                        data: {
+                            language: 'dutch'
+                        }
+                    }
+                },
+                {
+                    text: 'Slow',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'speech',
+                        action: 'config',
+                        data: {
+                            speed: 10
+                        }
+                    }
+                },
+                {
+                    text: 'Fast',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'speech',
+                        action: 'config',
+                        data: {
+                            speed: 200
+                        }
+                    }
+                },
+                {
+                    text: 'Reset',
+                    payload: {
+                        id: '{{requestId}}',
+                        type: 'command',
+                        module: 'speech',
+                        action: 'config',
+                        data: {
+                            reset: true
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    inputRow: {
+        label: 'Speech Text',
+        inputPlaceholder: 'Type text for the robot',
+        buttonText: 'Say Text',
+        payload: {
+            id: '{{requestId}}',
+            type: 'command',
+            module: 'speech',
+            action: 'say',
+            data: {
+                text: '{{input}}'
+            }
+        }
+    }
+};
+    </script>
+</head>
+<body>
+<div class="shell">
+    <nav class="suite-nav" aria-label="Bridge tools">
+        <a class="suite-link" href="websocket-console.html">WebSocket Console</a>
+        <a class="suite-link" href="rest-console.html">REST Console</a>
+        <a class="suite-link" href="camera-console.html">Camera Console</a>
+        <a class="suite-link current" href="dashboard-console.html">Dashboard Console</a>
+        <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">Dark mode</button>
+    </nav>
+    <h1 id="pageTitle">Robot Demo</h1>
+
+    <table aria-label="Robot demo commands">
+        <tbody>
+        <tr>
+            <td class="button-cell">
+                <button id="connectButton" type="button">Connect</button>
+            </td>
+            <td class="button-cell">
+                <button id="authorizeButton" class="secondary" type="button">Authorize</button>
+            </td>
+            <td class="button-cell">
+                <button id="logToggleButton" type="button">Show Log</button>
+            </td>
+            <td class="button-cell">
+                <div id="connectionStatus" class="status">Disconnected</div>
+            </td>
+            <td class="button-cell">
+                <div id="configStatus" class="status">Config ready</div>
+            </td>
+            <td class="button-cell"></td>
+        </tr>
+        </tbody>
+        <tbody id="commandRows"></tbody>
+        <tbody>
+        <tr>
+            <td id="inputLabel" class="label-cell" colspan="6">Speech Text</td>
+        </tr>
+        <tr>
+            <td colspan="6">
+                <div class="input-row">
+                    <input id="payloadInput" type="text">
+                    <button id="inputSendButton" class="secondary" type="button">Send</button>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <pre id="trafficLog" class="log" aria-live="polite" hidden></pre>
+</div>
+
+<script>
+    const HARD_CODED_WEBSOCKET_URL = `ws://${SANBOT_BRIDGE_IP_ADDRESS}:8088/ws`;
+    const HARD_CODED_API_KEY = SANBOT_BRIDGE_API_KEY;
+    const BUTTONS_PER_ROW = 6;
+
+    const defaultConfig = {
+        title: 'Robot Demo',
+        topRow: {
+            connectText: 'Connect',
+            authorizeText: 'Authorize'
+        },
+        rows: [],
+        inputRow: {
+            label: 'Speech Text',
+            inputPlaceholder: 'Text to say',
+            buttonText: 'Send',
+            payload: {
+                id: '{{requestId}}',
+                type: 'command',
+                module: 'speech',
+                action: 'say',
+                data: {
+                    text: '{{input}}'
+                }
+            }
+        }
+    };
+
+    const demoConfig = mergeConfig(defaultConfig, window.SANBOT_DEMO_CONFIG || {});
+
+    const pageTitle = document.getElementById('pageTitle');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const configStatus = document.getElementById('configStatus');
+    const commandRows = document.getElementById('commandRows');
+    const connectButton = document.getElementById('connectButton');
+    const authorizeButton = document.getElementById('authorizeButton');
+    const logToggleButton = document.getElementById('logToggleButton');
+    const inputLabel = document.getElementById('inputLabel');
+    const payloadInput = document.getElementById('payloadInput');
+    const inputSendButton = document.getElementById('inputSendButton');
+    const trafficLog = document.getElementById('trafficLog');
+
+    let socket = null;
+    let requestNumber = 1;
+    const pendingRequests = new Map();
+
+    function mergeConfig(base, override) {
+        return {
+            ...base,
+            ...override,
+            topRow: {
+                ...base.topRow,
+                ...(override.topRow || {})
+            },
+            inputRow: {
+                ...base.inputRow,
+                ...(override.inputRow || {})
+            },
+            rows: Array.isArray(override.rows) ? override.rows : base.rows
+        };
+    }
+
+    function renderDemo() {
+        pageTitle.textContent = demoConfig.title || defaultConfig.title;
+        connectButton.textContent = demoConfig.topRow.connectText || defaultConfig.topRow.connectText;
+        authorizeButton.textContent = demoConfig.topRow.authorizeText || defaultConfig.topRow.authorizeText;
+        inputLabel.textContent = demoConfig.inputRow.label || defaultConfig.inputRow.label;
+        payloadInput.placeholder = demoConfig.inputRow.inputPlaceholder || '';
+        inputSendButton.textContent = demoConfig.inputRow.buttonText || defaultConfig.inputRow.buttonText;
+
+        commandRows.innerHTML = '';
+
+        demoConfig.rows.forEach((row) => {
+            const labelRow = document.createElement('tr');
+            const labelCell = document.createElement('td');
+            labelCell.className = 'label-cell';
+            labelCell.colSpan = BUTTONS_PER_ROW;
+            labelCell.textContent = row.label || '';
+            labelRow.appendChild(labelCell);
+            commandRows.appendChild(labelRow);
+
+            const buttonRow = document.createElement('tr');
+            const buttons = Array.isArray(row.buttons) ? row.buttons : [];
+
+            for (let column = 0; column < BUTTONS_PER_ROW; column += 1) {
+                const cell = document.createElement('td');
+                cell.className = 'button-cell';
+                const command = buttons[column];
+
+                if (command) {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.textContent = command.text || `Button ${column + 1}`;
+                    button.addEventListener('click', () => sendCommandPayload(command.payload));
+                    cell.appendChild(button);
+                }
+
+                buttonRow.appendChild(cell);
+            }
+
+            commandRows.appendChild(buttonRow);
+        });
+    }
+
+    function setConnectionStatus(text, kind) {
+        connectionStatus.textContent = text;
+        connectionStatus.className = 'status';
+        if (kind) {
+            connectionStatus.classList.add(kind);
+        }
+    }
+
+    function setConfigStatus(text, kind) {
+        configStatus.textContent = text;
+        configStatus.className = 'status';
+        if (kind) {
+            configStatus.classList.add(kind);
+        }
+    }
+
+    function nextRequestId() {
+        const id = `req-${requestNumber}`;
+        requestNumber += 1;
+        return id;
+    }
+
+    function connectWebSocket() {
+        if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+            addLog('Socket already active.');
+            return;
+        }
+
+        socket = new WebSocket(HARD_CODED_WEBSOCKET_URL);
+        pendingRequests.clear();
+        setConnectionStatus('Connecting', null);
+        addLog(`CONNECT ${HARD_CODED_WEBSOCKET_URL}`);
+
+        socket.addEventListener('open', () => {
+            setConnectionStatus('Connected', 'ok');
+            addLog('CONNECTED');
+        });
+
+        socket.addEventListener('message', (event) => {
+            handleIncomingMessage(event.data);
+        });
+
+        socket.addEventListener('close', (event) => {
+            pendingRequests.clear();
+            setConnectionStatus('Disconnected', null);
+            addLog(`CLOSED ${event.code}${event.reason ? ` ${event.reason}` : ''}`);
+        });
+
+        socket.addEventListener('error', () => {
+            pendingRequests.clear();
+            setConnectionStatus('Socket error', 'error');
+            addLog('ERROR WebSocket error');
+        });
+    }
+
+    function sendAuthorizePayload() {
+        const sent = sendCommandPayload({
+            id: '{{requestId}}',
+            type: 'command',
+            module: 'bridge',
+            action: 'authorize',
+            data: {
+                key: '{{apiKey}}'
+            }
+        });
+        if (sent) {
+            setConnectionStatus('Authorizing', null);
+        }
+    }
+
+    function sendInputPayload() {
+        sendCommandPayload(demoConfig.inputRow.payload, {
+            input: payloadInput.value
+        });
+    }
+
+    function sendCommandPayload(payloadTemplate, contextOverrides) {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            addLog('ERROR Connect the WebSocket first.');
+            return false;
+        }
+
+        const context = {
+            requestId: nextRequestId(),
+            apiKey: HARD_CODED_API_KEY,
+            input: '',
+            ...(contextOverrides || {})
+        };
+
+        let payload;
+        try {
+            payload = resolvePayload(payloadTemplate, context);
+        } catch (error) {
+            addLog(`ERROR ${String(error.message || error)}`);
+            return false;
+        }
+
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+            addLog('ERROR Payload must resolve to a JSON object.');
+            return false;
+        }
+
+        if (!Object.prototype.hasOwnProperty.call(payload, 'id')) {
+            payload.id = context.requestId;
+        }
+
+        if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data) && Object.keys(payload.data).length === 0) {
+            delete payload.data;
+        }
+
+        const serialized = JSON.stringify(payload);
+        socket.send(serialized);
+        pendingRequests.set(payload.id, {
+            type: payload.type,
+            module: payload.module,
+            action: payload.action
+        });
+        addLog(`SEND ${JSON.stringify(payload, null, 2)}`);
+        return true;
+    }
+
+    function resolvePayload(value, context) {
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            const replaced = replaceToken(
+                replaceToken(
+                    replaceToken(value, '{{requestId}}', context.requestId),
+                    '{{apiKey}}',
+                    context.apiKey
+                ),
+                '{{input}}',
+                context.input
+            );
+
+            if (!trimmed.startsWith('{{') && (trimmed.startsWith('{') || trimmed.startsWith('['))) {
+                return resolvePayload(JSON.parse(replaced), context);
+            }
+
+            return replaced;
+        }
+
+        if (Array.isArray(value)) {
+            return value.map((item) => resolvePayload(item, context));
+        }
+
+        if (value && typeof value === 'object') {
+            const resolved = {};
+            Object.keys(value).forEach((key) => {
+                resolved[key] = resolvePayload(value[key], context);
+            });
+            return resolved;
+        }
+
+        return value;
+    }
+
+    function replaceToken(value, token, replacement) {
+        return String(value).split(token).join(String(replacement));
+    }
+
+    function handleIncomingMessage(message) {
+        addLog(`RECV ${formatMessage(message)}`);
+
+        if (typeof message !== 'string') {
+            return;
+        }
+
+        let payload;
+        try {
+            payload = JSON.parse(message);
+        } catch (error) {
+            return;
+        }
+
+        const pending = payload && payload.id ? pendingRequests.get(payload.id) : null;
+        if (pending) {
+            pendingRequests.delete(payload.id);
+        }
+
+        if (pending && pending.module === 'bridge' && pending.action === 'authorize') {
+            const authorized = isSuccessResponse(payload);
+            const authorizationLevel = authorized ? extractAuthorizationLevel(payload) : null;
+            setConnectionStatus(
+                authorized && authorizationLevel ? formatAuthorizationLevel(authorizationLevel) : authorized ? 'Authorized' : 'Unauthorized',
+                authorized ? 'ok' : 'error'
+            );
+        }
+    }
+
+    function isSuccessResponse(response) {
+        if (!response || response.type !== 'response') {
+            return false;
+        }
+
+        if (Object.prototype.hasOwnProperty.call(response, 'code')) {
+            const code = Number(response.code);
+            return code === 0 || (Number.isFinite(code) && code >= 200 && code < 300);
+        }
+
+        if (typeof response.response === 'string') {
+            return response.response.toLowerCase() === 'ok';
+        }
+
+        if (typeof response.message === 'string') {
+            return response.message.toUpperCase() === 'OK';
+        }
+
+        return response.error == null;
+    }
+
+    function extractAuthorizationLevel(response) {
+        if (!response || response.data == null) {
+            return response.description || response.message || null;
+        }
+
+        if (typeof response.data === 'string') {
+            return response.data.trim() || null;
+        }
+
+        if (typeof response.data === 'object') {
+            return response.data.authorizationLevel || response.data.level || response.data.value || response.description || response.message || null;
+        }
+
+        return String(response.data);
+    }
+
+    function formatAuthorizationLevel(level) {
+        return String(level).trim();
+    }
+
+    function formatMessage(message) {
+        if (typeof message !== 'string') {
+            return '[binary message]';
+        }
+
+        try {
+            return JSON.stringify(JSON.parse(message), null, 2);
+        } catch (error) {
+            return message;
+        }
+    }
+
+    function addLog(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        trafficLog.textContent = `[${timestamp}] ${message}\n${trafficLog.textContent}`;
+    }
+
+    function toggleTrafficLog() {
+        const isHidden = trafficLog.hidden;
+        trafficLog.hidden = !isHidden;
+        logToggleButton.textContent = isHidden ? 'Hide Log' : 'Show Log';
+    }
+
+    connectButton.addEventListener('click', connectWebSocket);
+    authorizeButton.addEventListener('click', sendAuthorizePayload);
+    logToggleButton.addEventListener('click', toggleTrafficLog);
+    inputSendButton.addEventListener('click', sendInputPayload);
+    payloadInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            sendInputPayload();
+        }
+    });
+
+    if (!window.SANBOT_DEMO_CONFIG) {
+        setConfigStatus('Missing dashboard-console-source.js', 'error');
+    }
+
+    renderDemo();
+</script>
+</body>
+</html>

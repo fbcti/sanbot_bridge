@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+<item
+        android:id="@+id/action_restart_service"
+        android:title="@string/menu_restart_bridge"
+        android:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_settings"
+        android:icon="@drawable/ic_menu_settings"
+        android:title="@string/menu_configuration"
+        android:showAsAction="always"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_stop_bridge"
+        android:title="@string/menu_stop_bridge"
+        android:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_about"
+        android:title="@string/menu_about"
+        android:showAsAction="never" />
+
+</menu>
+

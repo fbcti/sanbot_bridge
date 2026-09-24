@@ -1,0 +1,28 @@
+# Android Studio and IntelliJ IDEA
+.idea/
+*.iml
+
+# Gradle caches and build output
+.gradle/
+**/build/
+
+# Local Android SDK configuration
+/local.properties
+
+# Generated documentation
+/doc/html/
+/doc/Doxygen.log
+
+# Packaged applications and signing material
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# Vendor SDK binaries (download separately; see README.md)
+/app/libs/*.aar
+/app/libs/*.jar
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db

@@ -1,0 +1,109 @@
+apply plugin: 'com.android.application'
+
+def productVersion = "1.0.001"
+def externalBuildDir = System.getenv("SANBOTBRIDGE_BUILD_DIR")
+if (externalBuildDir != null && !externalBuildDir.trim().isEmpty()) {
+    buildDir = file(externalBuildDir)
+}
+
+android {
+    compileSdkVersion 28
+
+    sourceSets {
+        main {
+            java.srcDirs = ['src/main/java']
+        }
+        emulator {
+            java.srcDirs = ['src/emulator/java']
+        }
+    }
+
+    defaultConfig {
+        applicationId "com.fbcti.sanbot.bridge"
+        minSdkVersion 21
+        targetSdkVersion 23
+        versionCode 1001
+        versionName productVersion
+    }
+
+    flavorDimensions "runtime"
+
+    productFlavors {
+        robot {
+            dimension "runtime"
+            buildConfigField "boolean", "EMULATOR_MODE", "false"
+        }
+        emulator {
+            dimension "runtime"
+            applicationIdSuffix ".emulator"
+            versionNameSuffix "-emulator"
+            buildConfigField "boolean", "EMULATOR_MODE", "true"
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def variantLabel = variant.flavorName == "robot" ? variant.buildType.name : variant.name
+            outputFileName = "Sanbot Bridge-${productVersion}-${variantLabel}.apk"
+        }
+
+        def variantPath = variant.dirName
+        def publishApkTask = tasks.register("publish${variant.name.capitalize()}ApkToOutputs") {
+            doLast {
+                copy {
+                    from("$buildDir/intermediates/apk/${variantPath}")
+                    into("$buildDir/outputs/apk/${variantPath}")
+                    include "*.apk", "output-metadata.json"
+                }
+            }
+        }
+
+        tasks.named("package${variant.name.capitalize()}").configure {
+            finalizedBy(publishApkTask)
+        }
+
+        def mergeExtDexTaskName = "mergeExtDex${variant.name.capitalize()}"
+        tasks.matching { task -> task.name == mergeExtDexTaskName }.all { task ->
+            task.doFirst {
+                // AGP 4.1 can skip creating this empty folder for flavors without file-based SDK libs.
+                file("$buildDir/intermediates/external_file_lib_dex_archives/${variant.name}").mkdirs()
+            }
+        }
+    }
+
+}
+
+dependencies {
+    implementation 'org.jetbrains:annotations:15.0'
+    robotImplementation files('libs/SanbotOpenSDK_2.0.1.10.aar')
+    implementation 'com.android.support:appcompat-v7:26.1.0'
+    implementation 'com.android.support.constraint:constraint-layout:1.0.2'
+    implementation 'com.google.code.gson:gson:2.8.5'
+    implementation files('libs/OrbbecOpenNISDK_2.3.0.85.aar')
+    compileOnly files('libs/openni2.3.jar')
+}
+
+
+
+
+
+
+
+
+
+
+
+

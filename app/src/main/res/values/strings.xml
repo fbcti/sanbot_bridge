@@ -1,0 +1,46 @@
+<resources>
+    <string name="app_name">Sanbot Bridge</string>
+    <string name="title_bridge">Sanbot Bridge</string>
+    <string name="title_settings">Settings</string>
+    <string name="subtitle">This app exposes both a REST and a WebSocket API.</string>
+    <string name="status_label">Status</string>
+    <string name="tts_engine_label">TTS Engine</string>
+    <string name="tts_engine_android">Android</string>
+    <string name="tts_engine_sanbot">Sanbot</string>
+    <string name="use_android_tts_engine">Use Android text-to-speech engine</string>
+    <string name="enable_home_alarm_detection">Enable home alarm detection</string>
+    <string name="enable_face_detection">Enable face detection</string>
+    <string name="enable_speech_recognition">Enable speech recognition</string>
+    <string name="bridge_not_active">not active</string>
+    <string name="bridge_listening_at">listening at %1$s:%2$d</string>
+    <string name="api_key_invalid">The API authorizarion key may not be empty.</string>
+    <string name="robot_name_invalid">The robot name may not be empty.</string>
+    <string name="robot_name_label">Robot Name</string>
+    <string name="robot_name_input_hint">Enter friendly robot name</string>
+    <string name="api_key_label">API Authorizarion Key</string>
+    <string name="api_key_input_hint">Enter API authorization key</string>
+    <string name="required_permission_needed">This app requires storage and camera permissions.</string>
+    <string name="config_save_success">Successfully saved bridge settings to configuration file %1$s</string>
+    <string name="config_save_error">Failed to save bridge settings to configuration file %1$s</string>
+    <string name="settings_restart_notice">Saved settings take effect after restarting the bridge.</string>
+    <string name="configuration_subtitle">Set the robot name, HTTP listener port, API key, face detection, alarm detection, speech, and robot audio volume.</string>
+    <string name="robot_image_content_description">Sanbot robot</string>
+    <string name="http_port_label">HTTP Listener Port</string>
+    <string name="http_port_input_hint">Enter HTTP listener port</string>
+    <string name="http_port_invalid">Use a port from 1024 to 65535.</string>
+    <string name="save_configuration">Save</string>
+    <string name="reset_configuration">Reset</string>
+    <string name="volume_label">Audio Volume</string>
+    <string name="volume_percent_placeholder">0%%</string>
+    <string name="volume_percent">%1$d%%</string>
+    <string name="log_waiting">Waiting for bridge traffic...</string>
+    <string name="screen_image_content_description">Screen image</string>
+    <string name="screen_image_dismiss">Close</string>
+    <string name="menu_restart_bridge">Restart Bridge</string>
+    <string name="menu_configuration">Configuration</string>
+    <string name="menu_about">About</string>
+    <string name="menu_stop_bridge">Stop Bridge</string>
+    <string name="about_copyright">Copyright 2026 FBCTI</string>
+    <string name="about_message">%1$s\nVersion %2$s\n%3$s</string>
+</resources>
+

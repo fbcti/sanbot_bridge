@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sanbot Bridge WebSocket Explorer</title>
+    <script>
+        (() => {
+            const storageKey = 'sanbot-client-theme';
+            let theme = null;
+            try {
+                theme = localStorage.getItem(storageKey);
+            } catch (error) {
+                // Local storage may be unavailable for local files.
+            }
+            if (theme !== 'dark' && theme !== 'light') {
+                theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.dataset.theme = theme;
+            document.addEventListener('DOMContentLoaded', () => {
+                const button = document.getElementById('themeToggle');
+                if (!button) return;
+                const updateButton = () => {
+                    const dark = document.documentElement.dataset.theme === 'dark';
+                    button.textContent = dark ? 'Light mode' : 'Dark mode';
+                    button.setAttribute('aria-pressed', String(dark));
+                };
+                button.addEventListener('click', () => {
+                    document.documentElement.dataset.theme =
+                        document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+                    try {
+                        localStorage.setItem(storageKey, document.documentElement.dataset.theme);
+                    } catch (error) {
+                        // The selected theme still applies to the current page.
+                    }
+                    updateButton();
+                });
+                updateButton();
+            });
+        })();
+    </script>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f3f4f6;
+            --bg-2: #e5e7eb;
+            --panel: #ffffff;
+            --panel-strong: #ffffff;
+            --panel-soft: #eff6ff;
+            --control: #ffffff;
+            --surface-soft: #f8fafc;
+            --ink: #111827;
+            --muted: #4b5563;
+            --accent: #2563eb;
+            --accent-2: #0f766e;
+            --accent-3: #60a5fa;
+            --accent-4: #f59e0b;
+            --border: #cbd5e1;
+            --shadow: 0 14px 32px rgba(15, 23, 42, 0.10);
+            --danger: #b91c1c;
+            --ok: #15803d;
+            --warn: #b45309;
+            --on-accent: #ffffff;
+            --mono: "Consolas", "SFMono-Regular", monospace;
+            --sans: "Segoe UI", "Trebuchet MS", sans-serif;
+        }
+
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --bg: #0f172a;
+            --bg-2: #111827;
+            --panel: #1e293b;
+            --panel-strong: #1e293b;
+            --panel-soft: #172554;
+            --control: #0f172a;
+            --surface-soft: #111827;
+            --ink: #e5e7eb;
+            --muted: #94a3b8;
+            --accent: #60a5fa;
+            --accent-2: #2dd4bf;
+            --accent-3: #93c5fd;
+            --accent-4: #fbbf24;
+            --border: #475569;
+            --shadow: 0 14px 32px rgba(0, 0, 0, 0.32);
+            --danger: #f87171;
+            --ok: #4ade80;
+            --warn: #fbbf24;
+            --on-accent: #0f172a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: var(--sans);
+            color: var(--ink);
+            background:
+                radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 24%),
+                radial-gradient(circle at top right, rgba(15, 118, 110, 0.10), transparent 26%),
+                radial-gradient(circle at 50% 20%, rgba(245, 158, 11, 0.10), transparent 30%),
+                linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+        }
+
+        .shell {
+            max-width: 1420px;
+            margin: 0 auto;
+            padding: 34px 22px 42px;
+        }
+
+        .suite-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .suite-link {
+            display: inline-flex;
+            align-items: center;
+            min-height: 38px;
+            padding: 0 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.72);
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.86rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+
+        .suite-link.current {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #eff6ff;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .stack {
+            display: grid;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 26px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(18px);
+        }
+
+        .hero-copy {
+            padding: 34px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 14px;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.10);
+            color: #1d4ed8;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 18px;
+            box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12);
+        }
+
+        h1, h2, h3 {
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 2.55rem;
+            line-height: 0.98;
+            margin-bottom: 14px;
+            letter-spacing: -0.04em;
+        }
+
+        .sub {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.72;
+            font-size: 1.02rem;
+            max-width: 60ch;
+        }
+
+        .card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 24px 26px 0;
+        }
+
+        .card-body {
+            padding: 22px 26px 26px;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 999px;
+            padding: 9px 13px;
+            background: rgba(37, 99, 235, 0.10);
+            color: #1d4ed8;
+            font-weight: 800;
+            box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.10);
+        }
+
+        .status-pill.connected {
+            background: rgba(21, 128, 61, 0.10);
+            color: #166534;
+        }
+
+        .status-pill.error {
+            background: rgba(220, 38, 38, 0.10);
+            color: #b91c1c;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 7px;
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: var(--muted);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            background: #ffffff;
+            color: var(--ink);
+            border-radius: 16px;
+            padding: 13px 14px;
+            font: inherit;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+
+        textarea,
+        pre,
+        code,
+        .mono {
+            font-family: var(--mono);
+        }
+
+        textarea {
+            min-height: 220px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .field-span-2 {
+            grid-column: 1 / -1;
+        }
+
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        button {
+            border: 0;
+            border-radius: 6px;
+            padding: 0 14px;
+            min-width: 132px;
+            min-height: 40px;
+            font-weight: 700;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: transform 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
+            letter-spacing: 0.01em;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 18px 32px rgba(2, 8, 23, 0.25);
+            filter: brightness(1.03);
+        }
+
+        .primary {
+            background: #2563eb;
+            color: #eff6ff;
+        }
+
+        .secondary {
+            background: #0f766e;
+            color: #ecfeff;
+        }
+
+        .ghost {
+            background: #eef2f7;
+            color: var(--ink);
+            box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.16);
+        }
+
+        .small {
+            padding: 0 11px;
+            min-width: 110px;
+            min-height: 34px;
+            font-size: 0.8rem;
+        }
+
+        .help {
+            margin: 12px 0 0;
+            color: var(--muted);
+            line-height: 1.65;
+            font-size: 0.92rem;
+        }
+
+        .template-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .template-btn {
+            width: 100%;
+            text-align: left;
+            border-radius: 20px;
+            padding: 16px 18px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 253, 0.98));
+            border: 1px solid var(--border);
+            color: var(--ink);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+        }
+
+        .template-btn strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .template-btn span {
+            display: block;
+            color: var(--muted);
+            font-size: 0.88rem;
+            line-height: 1.45;
+        }
+
+        .stream {
+            background:
+                linear-gradient(180deg, rgba(244, 247, 251, 0.98), rgba(236, 242, 247, 0.98)),
+                radial-gradient(circle at top right, rgba(37, 99, 235, 0.06), transparent 34%);
+            color: #1f2937;
+            border-radius: 22px;
+            padding: 16px;
+            min-height: 440px;
+            max-height: 640px;
+            overflow: auto;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+        }
+
+        .log-item {
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .log-item:last-child {
+            border-bottom: 0;
+        }
+
+        .log-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.78rem;
+            margin-bottom: 8px;
+            color: #64748b;
+        }
+
+        .log-tag {
+            border-radius: 999px;
+            padding: 4px 8px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+        }
+
+        .tag-send {
+            background: rgba(37, 99, 235, 0.10);
+            color: #1d4ed8;
+        }
+
+        .tag-recv {
+            background: rgba(21, 128, 61, 0.10);
+            color: #166534;
+        }
+
+        .tag-event {
+            background: rgba(180, 83, 9, 0.10);
+            color: #92400e;
+        }
+
+        .tag-error {
+            background: rgba(220, 38, 38, 0.10);
+            color: #b91c1c;
+        }
+
+        .log-body {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.55;
+            font-size: 0.88rem;
+        }
+
+        .insight-list {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--muted);
+            line-height: 1.7;
+        }
+
+        .insight-list code {
+            background: rgba(37, 99, 235, 0.08);
+            border-radius: 6px;
+            padding: 2px 5px;
+        }
+
+        .footer-note {
+            margin-top: 18px;
+            padding: 16px 18px;
+            background:
+                linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(15, 118, 110, 0.06));
+            border: 1px solid rgba(37, 99, 235, 0.12);
+            border-radius: 18px;
+            color: var(--muted);
+            line-height: 1.65;
+        }
+
+        .sensor-banner {
+            margin-top: 16px;
+            padding: 18px 20px;
+            border-radius: 22px;
+            background:
+                linear-gradient(135deg, rgba(15, 118, 110, 0.10), rgba(37, 99, 235, 0.08));
+            border: 1px solid rgba(15, 118, 110, 0.12);
+        }
+
+        .sensor-banner strong {
+            display: block;
+            margin-bottom: 6px;
+            color: #0f766e;
+        }
+
+        .sensor-banner .sensor-empty {
+            color: var(--muted);
+        }
+
+        .sensor-banner .sensor-hit {
+            color: var(--ink);
+            line-height: 1.55;
+        }
+
+        @media (max-width: 1050px) {
+            .hero,
+            .grid,
+            .field-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .field-span-2 {
+                grid-column: auto;
+            }
+        }
+
+        html,
+        body {
+            min-height: 100%;
+            background: linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+        }
+
+        body * {
+            border-radius: 0 !important;
+        }
+
+        .suite-nav {
+            align-items: center;
+        }
+
+        .suite-link,
+        .theme-toggle,
+        .ghost,
+        input,
+        select,
+        textarea {
+            background: var(--control);
+            color: var(--ink);
+        }
+
+        .suite-link.current,
+        .primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--on-accent);
+        }
+
+        .secondary {
+            background: var(--accent-2);
+            color: var(--on-accent);
+        }
+
+        .theme-toggle {
+            width: auto;
+            min-width: 116px;
+            margin-left: auto;
+            border: 1px solid var(--border);
+        }
+
+        .badge,
+        .status-pill,
+        .insight-list code {
+            background: var(--panel-soft);
+            color: var(--accent);
+        }
+
+        .status-pill.connected,
+        .tag-recv {
+            color: var(--ok);
+        }
+
+        .status-pill.error,
+        .tag-error {
+            color: var(--danger);
+        }
+
+        .tag-event {
+            color: var(--warn);
+        }
+
+        .template-btn,
+        .stream,
+        .footer-note,
+        .sensor-banner {
+            background: var(--surface-soft);
+            color: var(--ink);
+            border-color: var(--border);
+        }
+
+        .stream,
+        .log-meta {
+            color: var(--muted);
+        }
+
+        .sensor-banner strong,
+        .tag-send {
+            color: var(--accent-2);
+        }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <nav class="suite-nav" aria-label="Bridge tools">
+        <a class="suite-link current" href="websocket-console.html">WebSocket Console</a>
+        <a class="suite-link" href="rest-console.html">REST Console</a>
+        <a class="suite-link" href="camera-console.html">Camera Console</a>
+        <a class="suite-link" href="dashboard-console.html">Dashboard Console</a>
+        <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">Dark mode</button>
+    </nav>
+    <section class="hero">
+        <div class="card hero-copy">
+            <div class="badge">WebSocket Console</div>
+            <h1>Sanbot Bridge WebSocket Explorer</h1>
+            <p class="sub">
+                A browser-based WebSocket explorer for the new bridge. Connect, load example commands,
+                send JSON messages, and watch responses and push events arrive in one place.
+            </p>
+            <div class="footer-note">
+                Recommended protocol shape:
+                <code>{"id":"req-1","type":"command","module":"speech","action":"say","data":{"text":"Hello"}}</code>
+                for commands, and
+                <code>{"id":"req-2","type":"info","module":"bridge","action":"status","data":{}}</code>
+                for read-only info requests. Responses use
+                <code>{"type":"response","id":"req-1","code":0,"message":"OK","data":{...}}</code>
+                and pushed events use
+                <code>{"type":"event","id":"evt-1","module":"head","event":"pressed",...}</code>
+                .
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <h2>Connection</h2>
+                <div id="connectionStatus" class="status-pill">Disconnected</div>
+            </div>
+            <div class="card-body">
+                <div class="field-grid">
+                    <div class="field-span-2">
+                        <label for="wsUrl">Robot Target</label>
+                        <select id="wsUrl">
+                            <option value="ws://10.30.12.111:8088/ws">10.30.12.111:5555</option>
+                            <option value="ws://10.30.12.112:8088/ws">10.30.12.112:5555</option>
+                            <option value="ws://10.30.12.113:8088/ws">10.30.12.113:5555</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="apiKey">API Key</label>
+                        <input id="apiKey" value="sanbot-bridge">
+                    </div>
+                </div>
+                <div class="button-row" style="margin-top: 16px;">
+                    <button id="connectBtn" class="primary">Connect</button>
+                    <button id="authorizeBtn" class="secondary">Authorize</button>
+                    <button id="disconnectBtn" class="ghost">Disconnect</button>
+                    <button id="statusBtn" class="secondary">Send Status</button>
+                    <button id="clearLogBtn" class="ghost">Clear Log</button>
+                </div>
+                <p class="help">
+                    Connect first, then send the authorize request once per socket session. Camera streaming remains on the HTTP endpoints.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="grid">
+        <div class="stack">
+            <div class="card">
+                <div class="card-head">
+                    <h2>Request Builder</h2>
+                    <button id="prettyBtn" class="ghost small">Format JSON</button>
+                </div>
+                <div class="card-body">
+                    <div class="field-grid">
+                        <div>
+                            <label for="nextId">Next Request Number</label>
+                            <input id="nextId" type="number" value="1" min="1">
+                        </div>
+                        <div>
+                            <label for="templatePicker">Quick Template</label>
+
+                            <select id="templatePicker">
+                                <option value="">Choose a template</option>
+                                <option value="openapi">info:bridge:openapi</option>
+                                <option value="status">info:bridge:status</option>
+                                <option value="config">info:bridge:config</option>
+                                <option value="robot-orientation-status">info:sensor:orientation</option>
+                                <option value="robot-sensors-status">info:sensor:infrared</option>
+                                <option value="camera-features">info:camera:features</option>
+                                <option value="media-volume">info:audio:volume</option>
+                                <option value="speech-features">info:speech:features</option>
+                                <option value="speech-status">info:speech:status</option>
+                                <option value="battery-status">info:battery:status</option>
+                                <option value="script-list">info:script:list</option>
+                                <option value="sensor-read">query:led:whitelight</option>
+                                <option value="robot-move">command:robot:move</option>
+                                <option value="robot-walk">command:robot:walk</option>
+                                <option value="robot-turn">command:robot:turn</option>
+                                <option value="robot-modular">command:robot:modular</option>
+                                <option value="robot-stop">command:robot:stop</option>
+                                <option value="robot-reset">command:robot:reset</option>
+                                <option value="robot-test">command:robot:test</option>
+                                <option value="head-move">command:head:move</option>
+                                <option value="head-turn">command:head:turn</option>
+                                <option value="head-nod">command:head:nod</option>
+                                <option value="head-location">command:head:location</option>
+                                <option value="head-stop">command:head:stop</option>
+                                <option value="head-reset">command:head:reset</option>
+                                <option value="head-center">command:head:center</option>
+                                <option value="head-light">command:head:whitelight</option>
+                                <option value="head-led">command:head:led</option>
+                                <option value="arms-move">command:arms:move</option>
+                                <option value="arms-stop">command:arms:stop</option>
+                                <option value="arms-reset">command:arms:reset</option>
+                                <option value="arms-led">command:arms:led</option>
+                                <option value="robot-led">command:led:set</option>
+                                <option value="face-emotion">command:face:emotion</option>
+                                <option value="sensor-config">command:sensor:config</option>
+                                <option value="command-camera-config">command:camera:config</option>
+                                <option value="command-camera-reset">command:camera:reset</option>
+                                <option value="command-camera-snapshot">command:camera:snapshot</option>
+                                <option value="command-camera-image">command:camera:picture</option>
+                                <option value="command-camera-face">command:camera:face</option>
+                                <option value="audio-volume">command:audio:volume</option>
+                                <option value="audio-play-url">command:audio:play</option>
+                                <option value="audio-record">command:audio:record</option>
+                                <option value="audio-stop">command:audio:stop</option>
+                                <option value="screen-image">command:screen:image</option>
+                                <option value="speech-config">command:speech:config</option>
+                                <option value="speech-say">command:speech:say</option>
+                                <option value="speech-listen">command:speech:listen</option>
+                                <option value="speech-stop">command:speech:stop</option>
+                                <option value="battery-config">command:battery:config</option>
+                                <option value="battery-charge">command:battery:charge</option>
+                                <option value="script-upload">command:script:upload</option>
+                                <option value="base-led">command:script:start</option>
+                                <option value="script-stop">command:script:stop</option>
+                            </select>
+                        </div>
+                        <div class="field-span-2">
+                            <label for="requestJson">Message JSON</label>
+                            <textarea id="requestJson">{
+  "id": "req-1",
+  "type": "info",
+  "module": "bridge",
+  "action": "status",
+  "data": {}
+}</textarea>
+                        </div>
+                    </div>
+                    <div class="button-row" style="margin-top: 16px;">
+                        <button id="sendBtn" class="primary">Send Message</button>
+                        <button id="cloneResponseBtn" class="ghost">Copy Last Response To Editor</button>
+                        <button id="resetEditorBtn" class="ghost">Reset Editor</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <h2>Examples</h2>
+                </div>
+                <div class="card-body">
+
+                    <div class="template-list">
+                        <button class="template-btn" data-template="authorize">
+                            <strong>Bridge: Authorize</strong>
+                            <span>First command for a new socket session. Sends the API key in a dedicated authorize request.</span>
+                        </button>
+                        <button class="template-btn" data-template="status">
+                            <strong>Bridge: Status</strong>
+                            <span>Public status command that helps validate the socket is working.</span>
+                        </button>
+                        <button class="template-btn" data-template="openapi">
+                            <strong>Bridge: OpenAPI</strong>
+                            <span>Read the compact API metadata exposed by <code>info:bridge:openapi</code>.</span>
+                        </button>
+                        <button class="template-btn" data-template="speech-features">
+                            <strong>Speech: Features</strong>
+                            <span>Read speech feature information.</span>
+                        </button>
+                        <button class="template-btn" data-template="speech-say">
+                            <strong>Speech: Say Text</strong>
+                            <span>Send a simple speech command with the payload nested under <code>data</code>.</span>
+                        </button>
+                        <button class="template-btn" data-template="speech-stop">
+                            <strong>Speech: Stop</strong>
+                            <span>Stop any active speech output.</span>
+                        </button>
+                        <button class="template-btn" data-template="media-volume">
+                            <strong>Media: Volume</strong>
+                            <span>Read the current stream volume, or omit <code>stream</code> to get all streams.</span>
+                        </button>
+                        <button class="template-btn" data-template="screen-image">
+                            <strong>Screen: Image</strong>
+                            <span>Display a local image, or send empty <code>data</code> to show the main bridge window.</span>
+                        </button>
+                        <button class="template-btn" data-template="audio-record">
+                            <strong>Audio: Record</strong>
+                            <span>Start buffered camera-audio capture for a fixed number of seconds.</span>
+                        </button>
+                        <button class="template-btn" data-template="command-camera-image">
+                            <strong>Camera: Picture Base64</strong>
+                            <span>Request a Base-64 still image using <code>type: "command"</code>, <code>module: "camera"</code>, and <code>action: "picture"</code>.</span>
+                        </button>
+                        <button class="template-btn" data-template="command-camera-face">
+                            <strong>Camera: Face Base64</strong>
+                            <span>Request the latest current cached face image as Base-64 using <code>type: "command"</code>, <code>module: "camera"</code>, and <code>action: "face"</code>.</span>
+                        </button>
+                        <button class="template-btn" data-template="robot-sensors-status">
+                            <strong>Robot: Infrared</strong>
+                            <span>Read the latest aggregated infrared sensor values.</span>
+                        </button>
+                        <button class="template-btn" data-template="robot-orientation-status">
+                            <strong>Robot: Orientation</strong>
+                            <span>Read the latest orientation values.</span>
+                        </button>
+                        <button class="template-btn" data-template="sensor-read">
+                            <strong>LED: Query White Light</strong>
+                            <span>Query the head-light brightness asynchronously with <code>type: "query"</code>, <code>module: "led"</code>, and <code>action: "whitelight"</code>.</span>
+                        </button>
+                        <button class="template-btn" data-template="sensor-config">
+                            <strong>Sensor: Config</strong>
+                            <span>Set multiple sensor forwarding states with <code>type: "command"</code>, <code>module: "sensor"</code>, and <code>action: "config"</code>.</span>
+                        </button>
+                        <button class="template-btn" data-template="robot-led">
+                            <strong>Robot: LEDs</strong>
+                            <span>Set the robot LEDs using a part, color, flicker delay, and random color count.</span>
+                        </button>
+                        <button class="template-btn" data-template="robot-move">
+                            <strong>Robot: Move Forward</strong>
+                            <span>Move for a specified duration using <code>module: "robot"</code> and <code>action: "move"</code>.</span>
+                        </button>
+                        <button class="template-btn" data-template="robot-walk">
+                            <strong>Robot: Walk Forward</strong>
+                            <span>Walk forward for a specified distance using <code>action: "walk"</code>.</span>
+                        </button>
+                        <button class="template-btn" data-template="robot-turn">
+                            <strong>Robot: Turn Left</strong>
+                            <span>Turn on the robot axis using <code>action: "turn"</code>.</span>
+                        </button>
+                        <button class="template-btn" data-template="robot-stop">
+                            <strong>Robot: Stop</strong>
+                            <span>Send the placeholder stop command using <code>action: "stop"</code>.</span>
+                        </button>
+                        <button class="template-btn" data-template="head-light">
+                            <strong>Head: White Light</strong>
+                            <span>Switch the head light with <code>module: "head"</code> and <code>action: "whitelight"</code>.</span>
+                        </button>
+                        <button class="template-btn" data-template="head-move">
+                            <strong>Head: Move</strong>
+                            <span>Move the head in any supported direction using <code>action: "move"</code>.</span>
+                        </button>
+                        <button class="template-btn" data-template="head-turn">
+                            <strong>Head: Turn</strong>
+                            <span>Turn the head horizontally using <code>action: "turn"</code>.</span>
+                        </button>
+                        <button class="template-btn" data-template="head-nod">
+                            <strong>Head: Nod</strong>
+                            <span>Nod the head vertically using <code>action: "nod"</code>.</span>
+                        </button>
+                        <button class="template-btn" data-template="head-led">
+                            <strong>Head: LED</strong>
+                            <span>Control the left or right head LED side.</span>
+                        </button>
+                        <button class="template-btn" data-template="head-reset">
+                            <strong>Head: Reset</strong>
+                            <span>Return the head to its default position.</span>
+                        </button>
+                        <button class="template-btn" data-template="head-stop">
+                            <strong>Head: Stop</strong>
+                            <span>Stop head motion immediately.</span>
+                        </button>
+                        <button class="template-btn" data-template="arms-move">
+                            <strong>Arms: Move</strong>
+                            <span>Move one or both arms with <code>side</code>, <code>direction</code>, <code>angle</code>, and <code>speed</code>.</span>
+                        </button>
+                        <button class="template-btn" data-template="arms-reset">
+                            <strong>Arms: Reset</strong>
+                            <span>Return both arms to the default position.</span>
+                        </button>
+                        <button class="template-btn" data-template="arms-stop">
+                            <strong>Arms: Stop</strong>
+                            <span>Stop arm movement immediately.</span>
+                        </button>
+                        <button class="template-btn" data-template="face-emotion">
+                            <strong>Face: Hold Emotion</strong>
+                            <span>Show a persistent expression using <code>refresh</code>.</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stack">
+            <div class="card">
+                <div class="card-head">
+                    <h2>Live Traffic</h2>
+                </div>
+                <div class="card-body">
+                    <div id="trafficLog" class="stream"></div>
+                    <div id="sensorBanner" class="sensor-banner">
+                        <strong>Latest Head Touch Event</strong>
+                        <div id="sensorBannerBody" class="sensor-empty">No head touch event received yet.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <h2>Protocol Notes</h2>
+                </div>
+                <div class="card-body">
+                    <ul class="insight-list">
+                        <li>The first privileged message should be <code>{"type":"command","module":"bridge","action":"authorize","data":{"key":"..."}}</code>.</li>
+                        <li>The first authorized active socket receives <code>read_write</code>; later authorized sockets are read-only until promoted.</li>
+                        <li>Commands should include <code>id</code>, <code>type: "command"</code>, <code>module</code>, <code>action</code>, and a <code>data</code> object.</li>
+                        <li>Read-only requests use <code>type: "info"</code>; handler-backed requests cover bridge OpenAPI/status, sensor orientation/infrared, camera features, audio volume, speech features/status, and battery status.</li>
+                        <li>Responses mirror the request id and include <code>type: "response"</code>, numeric HTTP-like <code>code</code>, and <code>message</code>. Successful handler requests use codes in the <code>2xx</code> range, usually <code>200</code>.</li>
+                        <li>Push events arrive with <code>type: "event"</code>, plus <code>module</code>, <code>event</code>, and <code>data</code>.</li>
+                        <li>Head touch callbacks are surfaced as <code>module: "head"</code> with the touch <code>sensorId</code> inside <code>data</code>.</li>
+                        <li>Movement commands use <code>data.direction</code> for values like <code>left</code> or <code>forward</code>; <code>head:move</code> accepts all head directions, while <code>head:turn</code> and <code>head:nod</code> restrict that direction to one axis.</li>
+                        <li>Binary camera images and MJPEG streams are available only through the REST API.</li>
+                        <li>Screen images use <code>command:screen:image</code> with a file name relative to <code>/sdcard/SanbotBridge/images</code>; omit <code>data.filename</code> to show the main bridge window.</li>
+                        <li>Audio playback uses <code>command:audio:play</code> with exactly one of <code>data.url</code> or <code>data.filename</code>; local audio files are relative to <code>/sdcard/SanbotBridge/audio</code>.</li>
+                        <li>Audio capture starts with <code>command:audio:record</code> using <code>data.length</code> in seconds; recorded WAV data is retrieved through the REST API.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+    const wsUrlInput = document.getElementById('wsUrl');
+    const apiKeyInput = document.getElementById('apiKey');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const requestJson = document.getElementById('requestJson');
+    const nextIdInput = document.getElementById('nextId');
+    const templatePicker = document.getElementById('templatePicker');
+    const trafficLog = document.getElementById('trafficLog');
+    const sensorBannerBody = document.getElementById('sensorBannerBody');
+
+    let socket = null;
+    let lastResponse = null;
+    let authorizationLevel = null;
+    const pendingRequests = new Map();
+
+    const templates = {
+        authorize: { id: 'req-1', type: 'command', module: 'bridge', action: 'authorize', data: { key: 'sanbot-bridge' } },
+        openapi: { id: 'req-1', type: 'info', module: 'bridge', action: 'openapi', data: {} },
+        status: { id: 'req-1', type: 'info', module: 'bridge', action: 'status', data: {} },
+        config: { id: 'req-1', type: 'info', module: 'bridge', action: 'config', data: {} },
+        'robot-orientation-status': { id: 'req-1', type: 'info', module: 'sensor', action: 'orientation', data: {} },
+        'robot-sensors-status': { id: 'req-1', type: 'info', module: 'sensor', action: 'infrared', data: {} },
+        'camera-features': { id: 'req-1', type: 'info', module: 'camera', action: 'features', data: { camera: 'head' } },
+        'media-volume': { id: 'req-1', type: 'info', module: 'audio', action: 'volume', data: { stream: 'music' } },
+        'speech-features': { id: 'req-1', type: 'info', module: 'speech', action: 'features', data: {} },
+        'speech-status': { id: 'req-1', type: 'info', module: 'speech', action: 'status', data: {} },
+        'battery-status': { id: 'req-1', type: 'info', module: 'battery', action: 'status', data: {} },
+        'script-list': { id: 'req-1', type: 'info', module: 'script', action: 'list', data: {} },
+        'sensor-read': { id: 'req-1', type: 'query', module: 'led', action: 'whitelight', data: { refid: 'head-light-1' } },
+        'robot-move': { id: 'req-1', type: 'command', module: 'robot', action: 'move', data: { direction: 'forward', speed: 5, duration: 10 } },
+        'robot-walk': { id: 'req-1', type: 'command', module: 'robot', action: 'walk', data: { distance: 50, speed: 5 } },
+        'robot-turn': { id: 'req-1', type: 'command', module: 'robot', action: 'turn', data: { direction: 'left', angle: 90, speed: 5 } },
+        'robot-modular': { id: 'req-1', type: 'command', module: 'robot', action: 'modular', data: { mode: 'wander', action: 'start' } },
+        'robot-stop': { id: 'req-1', type: 'command', module: 'robot', action: 'stop', data: {} },
+        'robot-reset': { id: 'req-1', type: 'command', module: 'robot', action: 'reset', data: {} },
+        'robot-test': { id: 'req-1', type: 'command', module: 'robot', action: 'test', data: { func: 'ping' } },
+        'head-move': { id: 'req-1', type: 'command', module: 'head', action: 'move', data: { direction: 'right_up', angle: 10 } },
+        'head-turn': { id: 'req-1', type: 'command', module: 'head', action: 'turn', data: { direction: 'left', angle: 15 } },
+        'head-nod': { id: 'req-1', type: 'command', module: 'head', action: 'nod', data: { direction: 'up', angle: 10 } },
+        'head-location': { id: 'req-1', type: 'command', module: 'head', action: 'location', data: { hangle: 0, vangle: 0, lock: 'none' } },
+        'head-stop': { id: 'req-1', type: 'command', module: 'head', action: 'stop', data: {} },
+        'head-reset': { id: 'req-1', type: 'command', module: 'head', action: 'reset', data: {} },
+        'head-center': { id: 'req-1', type: 'command', module: 'head', action: 'center', data: {} },
+        'head-light': { id: 'req-1', type: 'command', module: 'head', action: 'whitelight', data: { on: true, brightness: 3 } },
+        'head-led': { id: 'req-1', type: 'command', module: 'head', action: 'led', data: { side: 'left', color: 'blue', flicker: 0, random: 0 } },
+        'arms-move': { id: 'req-1', type: 'command', module: 'arms', action: 'move', data: { side: 'both', direction: 'up', angle: 45, speed: 5 } },
+        'arms-stop': { id: 'req-1', type: 'command', module: 'arms', action: 'stop', data: { part: 'both' } },
+        'arms-reset': { id: 'req-1', type: 'command', module: 'arms', action: 'reset', data: { part: 'both', speed: 5 } },
+        'arms-led': { id: 'req-1', type: 'command', module: 'arms', action: 'led', data: { side: 'left', color: 'blue', flicker: 0, random: 0 } },
+        'robot-led': { id: 'req-1', type: 'command', module: 'led', action: 'set', data: { part: 'base', color: 'blue', flicker: 0, random: 0 } },
+        'face-emotion': { id: 'req-1', type: 'command', module: 'face', action: 'emotion', data: { emotion: 'SMILE', refresh: 4 } },
+        'sensor-config': { id: 'req-1', type: 'command', module: 'sensor', action: 'config', data: { pir: true, obstacle: true, touch: true, infrared: { enable: true, update: 1000, sensitivity: 90 }, voicelocate: true, orientation: { enable: true, sensitivity: 90 } } },
+        'command-camera-config': { id: 'req-1', type: 'command', module: 'camera', action: 'config', data: { camera: 'head', active: true } },
+        'command-camera-reset': { id: 'req-1', type: 'command', module: 'camera', action: 'reset', data: { camera: 'head' } },
+        'command-camera-snapshot': { id: 'req-1', type: 'command', module: 'camera', action: 'snapshot', data: { camera: 'head' } },
+        'command-camera-image': { id: 'req-1', type: 'command', module: 'camera', action: 'picture', data: { camera: 'head' } },
+        'command-camera-face': { id: 'req-1', type: 'command', module: 'camera', action: 'face', data: { index: 0 } },
+        'audio-volume': { id: 'req-1', type: 'command', module: 'audio', action: 'volume', data: { stream: 'music', volume: 50 } },
+        'audio-play-url': { id: 'req-1', type: 'command', module: 'audio', action: 'play', data: { url: 'http://10.30.12.203:8099/test.wav' } },
+        'audio-record': { id: 'req-1', type: 'command', module: 'audio', action: 'record', data: { length: 5, save: true } },
+        'audio-stop': { id: 'req-1', type: 'command', module: 'audio', action: 'stop', data: {} },
+        'screen-image': { id: 'req-1', type: 'command', module: 'screen', action: 'image', data: { filename: 'welcome.png' } },
+        'speech-config': { id: 'req-1', type: 'command', module: 'speech', action: 'config', data: { language: 'nl-NL', speed: 100, pitch: 100, save: false } },
+        'speech-say': { id: 'req-1', type: 'command', module: 'speech', action: 'say', data: { text: 'Hello from the WebSocket explorer' } },
+        'speech-listen': { id: 'req-1', type: 'command', module: 'speech', action: 'listen', data: { language: 'nl-NL' } },
+        'speech-stop': { id: 'req-1', type: 'command', module: 'speech', action: 'stop', data: {} },
+        'battery-config': { id: 'req-1', type: 'command', module: 'battery', action: 'config', data: { mode: 'auto', level: 20 } },
+        'battery-charge': { id: 'req-1', type: 'command', module: 'battery', action: 'charge', data: { cancel: false } },
+        'script-upload': { id: 'req-1', type: 'command', module: 'script', action: 'upload', data: { script: 'demo' } },
+        'base-led': { id: 'req-1', type: 'command', module: 'script', action: 'start', data: { script: 'demo' } },
+        'script-stop': { id: 'req-1', type: 'command', module: 'script', action: 'stop', data: {} }
+    };
+
+    function setStatus(text, kind) {
+        connectionStatus.textContent = text;
+        connectionStatus.className = 'status-pill';
+        if (kind) {
+            connectionStatus.classList.add(kind);
+        }
+    }
+
+    function getNextId() {
+        const value = Number(nextIdInput.value || '1');
+        const nextNumber = Number.isFinite(value) && value > 0 ? value : 1;
+        return `req-${nextNumber}`;
+    }
+
+    function bumpNextId(currentId) {
+        if (typeof currentId !== 'string') {
+            return;
+        }
+        const match = /^req-(\d+)$/.exec(currentId);
+        if (match) {
+            nextIdInput.value = String(Number(match[1]) + 1);
+        }
+    }
+
+    function hydrateTemplate(command) {
+        const next = { ...command };
+        next.data = { ...(command.data || {}) };
+        if (next.module === 'bridge' && next.action === 'authorize') {
+            next.data.key = apiKeyInput.value.trim();
+        }
+        return next;
+    }
+
+    function normalizeTemplate(name) {
+        const template = templates[name];
+        if (!template) {
+            return null;
+        }
+        const nextId = getNextId();
+        return hydrateTemplate({ ...template, id: nextId });
+    }
+
+    function loadTemplate(name) {
+        const payload = normalizeTemplate(name);
+        if (!payload) {
+            return;
+        }
+        const pickerOption = Array.from(templatePicker.options).some((option) => option.value === name);
+        templatePicker.value = pickerOption ? name : '';
+        requestJson.value = JSON.stringify(payload, null, 2);
+    }
+
+    function formatEditorJson() {
+        try {
+            const parsed = JSON.parse(requestJson.value);
+            requestJson.value = JSON.stringify(parsed, null, 2);
+        } catch (error) {
+            addLog('error', `Cannot format invalid JSON:\n${String(error)}`);
+        }
+    }
+
+    function buildConnectUrl() {
+        const rawUrl = wsUrlInput.value.trim();
+        if (!rawUrl) {
+            throw new Error('WebSocket URL is required');
+        }
+        return new URL(rawUrl).toString();
+    }
+
+    function connectSocket() {
+        if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+            return;
+        }
+
+        let url;
+        try {
+            url = buildConnectUrl();
+        } catch (error) {
+            setStatus('Bad URL', 'error');
+            addLog('error', String(error));
+            return;
+        }
+
+        socket = new WebSocket(url);
+        authorizationLevel = null;
+        pendingRequests.clear();
+        setStatus('Connecting', null);
+        addLog('send', `CONNECT ${url}`);
+
+        socket.addEventListener('open', () => {
+            setStatus('Connected', 'connected');
+            addLog('recv', 'Socket opened');
+        });
+
+        socket.addEventListener('message', (event) => {
+            let kind = 'recv';
+            let pretty = event.data;
+            if (event.data instanceof Blob) {
+                addLog(kind, `[binary capture] ${event.data.type || 'application/octet-stream'} ${event.data.size} bytes`);
+                return;
+            }
+            try {
+                const parsed = JSON.parse(event.data);
+                pretty = JSON.stringify(parsed, null, 2);
+                if (parsed && parsed.type === 'event') {
+                    kind = 'event';
+                    handleIncomingEvent(parsed);
+                } else {
+                    lastResponse = parsed;
+                    const pending = parsed && parsed.id ? pendingRequests.get(parsed.id) : null;
+                    if (pending) {
+                        pendingRequests.delete(parsed.id);
+                    }
+                    if (pending && pending.module === 'bridge' && pending.action === 'authorize') {
+                        const authorized = isSuccessResponse(parsed);
+                        authorizationLevel = authorized ? extractAuthorizationLevel(parsed) : null;
+                        setStatus(
+                            authorized && authorizationLevel ? formatAuthorizationLevel(authorizationLevel) : authorized ? 'Authorized' : 'Unauthorized',
+                            authorized ? 'connected' : 'error'
+                        );
+                    }
+                }
+            } catch (error) {
+                // Keep raw text when it is not JSON.
+            }
+            addLog(kind, pretty);
+        });
+
+        socket.addEventListener('close', (event) => {
+            authorizationLevel = null;
+            pendingRequests.clear();
+            setStatus('Disconnected', null);
+            addLog('recv', `Socket closed (${event.code}${event.reason ? `: ${event.reason}` : ''})`);
+        });
+
+        socket.addEventListener('error', () => {
+            authorizationLevel = null;
+            setStatus('Socket Error', 'error');
+            addLog('error', 'WebSocket error');
+        });
+    }
+
+    function extractAuthorizationLevel(response) {
+        if (!response || response.data == null) {
+            return typeof response.message === 'string' && response.message.trim()
+                ? response.message.trim()
+                : null;
+        }
+
+        if (typeof response.data === 'string') {
+            return response.data.trim() || null;
+        }
+
+        if (typeof response.data === 'object') {
+            return response.data.authorizationLevel || response.data.level || response.data.value || response.message || null;
+        }
+
+        return String(response.data);
+    }
+
+    function formatAuthorizationLevel(level) {
+        return String(level).trim().replace(/[_-]+/g, ' ');
+    }
+
+    function isSuccessResponse(response) {
+        if (!response || response.type !== 'response') {
+            return false;
+        }
+
+        const code = Number(response.code);
+        return code === 0 || (Number.isFinite(code) && code >= 200 && code < 300);
+    }
+
+    function disconnectSocket() {
+        if (!socket) {
+            return;
+        }
+        authorizationLevel = null;
+        pendingRequests.clear();
+        socket.close();
+        socket = null;
+    }
+
+    function sendPayload(payload, updateEditor) {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            addLog('error', 'Connect the WebSocket before sending commands');
+            return;
+        }
+
+        if (!Object.prototype.hasOwnProperty.call(payload, 'id')) {
+            payload.id = getNextId();
+        }
+        if (!payload.type) {
+            payload.type = payload.module === 'bridge' && payload.action === 'status'
+                ? 'info'
+                : 'command';
+        }
+
+        if (payload.module === 'bridge' && payload.action === 'authorize') {
+            payload.data = payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)
+                ? payload.data
+                : {};
+            payload.data.key = apiKeyInput.value.trim();
+        } else if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data) && Object.keys(payload.data).length === 0) {
+            delete payload.data;
+        }
+
+        const serialized = JSON.stringify(payload);
+        socket.send(serialized);
+        pendingRequests.set(payload.id, {
+            type: payload.type,
+            module: payload.module,
+            action: payload.action
+        });
+        if (updateEditor) {
+            requestJson.value = JSON.stringify(payload, null, 2);
+        }
+        addLog('send', JSON.stringify(payload, null, 2));
+        bumpNextId(payload.id);
+    }
+
+    function sendEditorCommand() {
+        let payload;
+        try {
+            payload = JSON.parse(requestJson.value);
+        } catch (error) {
+            addLog('error', `Invalid JSON:\n${String(error)}`);
+            return;
+        }
+
+        sendPayload(payload, true);
+    }
+
+    function addLog(kind, body) {
+        const item = document.createElement('div');
+        item.className = 'log-item';
+
+        const meta = document.createElement('div');
+        meta.className = 'log-meta';
+
+        const tag = document.createElement('span');
+        tag.className = `log-tag tag-${kind}`;
+        tag.textContent =
+            kind === 'send' ? 'SENT' :
+            kind === 'recv' ? 'RECV' :
+            kind === 'event' ? 'EVENT' : 'ERROR';
+
+        const stamp = document.createElement('span');
+        stamp.textContent = new Date().toLocaleTimeString();
+
+        meta.appendChild(tag);
+        meta.appendChild(stamp);
+
+        const pre = document.createElement('pre');
+        pre.className = 'log-body';
+        pre.textContent = body;
+
+        item.appendChild(meta);
+        item.appendChild(pre);
+        trafficLog.prepend(item);
+    }
+
+    function handleIncomingEvent(payload) {
+        if (!payload || payload.module !== 'head') {
+            return;
+        }
+
+        const timestamp = payload.timestamp ? ` at ${payload.timestamp}` : '';
+        const sensorId = payload.data && Object.prototype.hasOwnProperty.call(payload.data, 'sensorId')
+            ? ` (sensorId ${payload.data.sensorId})`
+            : '';
+
+        sensorBannerBody.className = 'sensor-hit';
+        sensorBannerBody.textContent = `${payload.event || 'event'}${sensorId}${timestamp}`;
+    }
+
+    function clearLog() {
+        trafficLog.innerHTML = '';
+        sensorBannerBody.className = 'sensor-empty';
+        sensorBannerBody.textContent = 'No head touch event received yet.';
+    }
+
+    function sendStatusCommand() {
+        loadTemplate('status');
+        sendEditorCommand();
+    }
+
+    function sendAuthorizeCommand() {
+        sendPayload(normalizeTemplate('authorize'), false);
+    }
+
+    function cloneLastResponse() {
+        if (!lastResponse) {
+            addLog('error', 'No JSON response has been received yet');
+            return;
+        }
+        requestJson.value = JSON.stringify(lastResponse, null, 2);
+    }
+
+    function resetEditor() {
+        loadTemplate('status');
+    }
+
+    document.getElementById('connectBtn').addEventListener('click', connectSocket);
+    document.getElementById('authorizeBtn').addEventListener('click', sendAuthorizeCommand);
+    document.getElementById('disconnectBtn').addEventListener('click', disconnectSocket);
+    document.getElementById('sendBtn').addEventListener('click', sendEditorCommand);
+    document.getElementById('statusBtn').addEventListener('click', sendStatusCommand);
+    document.getElementById('clearLogBtn').addEventListener('click', clearLog);
+    document.getElementById('prettyBtn').addEventListener('click', formatEditorJson);
+    document.getElementById('cloneResponseBtn').addEventListener('click', cloneLastResponse);
+    document.getElementById('resetEditorBtn').addEventListener('click', resetEditor);
+    templatePicker.addEventListener('change', (event) => {
+        if (event.target.value) {
+            loadTemplate(event.target.value);
+        }
+    });
+
+    document.querySelectorAll('.template-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+            loadTemplate(button.dataset.template);
+        });
+    });
+
+    loadTemplate('authorize');
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+

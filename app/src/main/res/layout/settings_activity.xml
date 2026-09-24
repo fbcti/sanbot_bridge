@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:baselineAligned="false"
+    android:descendantFocusability="beforeDescendants"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:orientation="horizontal"
+    android:padding="20dp">
+
+    <ScrollView
+        android:id="@+id/settings_controls_pane"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginEnd="20dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/settings_restart_notice_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_restart_notice"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/settings_robot_name_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/robot_name_label"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/settings_robot_name_edit_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="@string/robot_name_input_hint"
+                android:inputType="textCapWords|textNoSuggestions"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/settings_http_port_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/http_port_label"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/settings_http_port_edit_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="@string/http_port_input_hint"
+                android:inputType="number"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/settings_api_key_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/api_key_label"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/settings_api_key_edit_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="@string/api_key_input_hint"
+                android:inputType="textNoSuggestions"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:textSize="14sp" />
+
+            <Switch
+                android:id="@+id/settings_android_tts_switch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:checked="true"
+                android:text="@string/use_android_tts_engine"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <Switch
+                android:id="@+id/settings_enable_asr_switch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:checked="false"
+                android:text="@string/enable_speech_recognition"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <Switch
+                android:id="@+id/settings_face_detection_switch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:checked="true"
+                android:text="@string/enable_face_detection"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <Switch
+                android:id="@+id/settings_home_alarm_detection_switch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:checked="true"
+                android:text="@string/enable_home_alarm_detection"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/settings_action_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/settings_save_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="24dp"
+                    android:paddingRight="24dp"
+                    android:text="@string/save_configuration"
+                    android:textAllCaps="false" />
+
+                <Button
+                    android:id="@+id/settings_reset_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:paddingLeft="24dp"
+                    android:paddingRight="24dp"
+                    android:text="@string/reset_configuration"
+                    android:textAllCaps="false" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <FrameLayout
+        android:id="@+id/settings_robot_pane"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center">
+
+        <ImageView
+            android:id="@+id/settings_robot_image"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:adjustViewBounds="true"
+            android:contentDescription="@string/robot_image_content_description"
+            android:scaleType="fitCenter"
+            android:src="@drawable/robot_settings" />
+
+    </FrameLayout>
+
+</LinearLayout>

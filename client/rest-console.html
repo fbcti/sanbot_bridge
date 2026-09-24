@@ -1,0 +1,2351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sanbot Bridge REST Explorer</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+    <script>
+        (() => {
+            const storageKey = 'sanbot-client-theme';
+            let theme = null;
+            try {
+                theme = localStorage.getItem(storageKey);
+            } catch (error) {
+                // Local storage may be unavailable for local files.
+            }
+            if (theme !== 'dark' && theme !== 'light') {
+                theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.dataset.theme = theme;
+            document.addEventListener('DOMContentLoaded', () => {
+                const button = document.getElementById('themeToggle');
+                if (!button) return;
+                const updateButton = () => {
+                    const dark = document.documentElement.dataset.theme === 'dark';
+                    button.textContent = dark ? 'Light mode' : 'Dark mode';
+                    button.setAttribute('aria-pressed', String(dark));
+                };
+                button.addEventListener('click', () => {
+                    document.documentElement.dataset.theme =
+                        document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+                    try {
+                        localStorage.setItem(storageKey, document.documentElement.dataset.theme);
+                    } catch (error) {
+                        // The selected theme still applies to the current page.
+                    }
+                    updateButton();
+                });
+                updateButton();
+            });
+        })();
+    </script>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f3f4f6;
+            --bg-2: #e5e7eb;
+            --panel: #ffffff;
+            --panel-strong: #ffffff;
+            --panel-soft: #eff6ff;
+            --control: #ffffff;
+            --surface-soft: #f8fafc;
+            --ink: #111827;
+            --muted: #4b5563;
+            --accent: #2563eb;
+            --accent-2: #0f766e;
+            --border: #cbd5e1;
+            --shadow: 0 14px 32px rgba(15, 23, 42, 0.10);
+            --danger: #b91c1c;
+            --ok: #15803d;
+            --warn: #b45309;
+            --on-accent: #ffffff;
+            --sans: "Segoe UI", "Trebuchet MS", sans-serif;
+        }
+
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --bg: #0f172a;
+            --bg-2: #111827;
+            --panel: #1e293b;
+            --panel-strong: #1e293b;
+            --panel-soft: #172554;
+            --control: #0f172a;
+            --surface-soft: #111827;
+            --ink: #e5e7eb;
+            --muted: #94a3b8;
+            --accent: #60a5fa;
+            --accent-2: #2dd4bf;
+            --border: #475569;
+            --shadow: 0 14px 32px rgba(0, 0, 0, 0.32);
+            --danger: #f87171;
+            --ok: #4ade80;
+            --warn: #fbbf24;
+            --on-accent: #0f172a;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background:
+                radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 24%),
+                radial-gradient(circle at top right, rgba(15, 118, 110, 0.10), transparent 26%),
+                radial-gradient(circle at 50% 20%, rgba(245, 158, 11, 0.10), transparent 30%),
+                linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+            font-family: var(--sans);
+            color: var(--ink);
+        }
+
+        .shell {
+            max-width: 1420px;
+            margin: 0 auto;
+            padding: 34px 22px 42px;
+        }
+
+        .suite-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .suite-link {
+            display: inline-flex;
+            align-items: center;
+            min-height: 38px;
+            padding: 0 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.72);
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.86rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+
+        .suite-link.current {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #eff6ff;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 26px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(18px);
+        }
+
+        .hero-copy {
+            padding: 34px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 14px;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.10);
+            color: #1d4ed8;
+            font-weight: 800;
+            font-size: 0.8rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 18px;
+            box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12);
+        }
+
+        h1, h2 {
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 2.55rem;
+            line-height: 0.98;
+            margin-bottom: 14px;
+            letter-spacing: -0.04em;
+        }
+
+        .sub {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.72;
+            font-size: 1.02rem;
+            max-width: 60ch;
+        }
+
+        .hero-note {
+            margin-top: 18px;
+            padding: 16px 18px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(15, 118, 110, 0.06));
+            border: 1px solid rgba(37, 99, 235, 0.12);
+            color: var(--muted);
+            line-height: 1.62;
+        }
+
+        .summary-card {
+            padding: 28px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .summary-item {
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+        }
+
+        .summary-item strong {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .summary-item span {
+            color: var(--ink);
+            line-height: 1.55;
+        }
+
+        .base-url-control,
+        .api-key-control,
+        .rest-test-control {
+            grid-column: span 2;
+        }
+
+        .base-url-form {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .base-url-form input {
+            min-width: 0;
+            height: 40px;
+            padding: 0 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #ffffff;
+            color: var(--ink);
+            font-family: var(--sans);
+            font-size: 0.92rem;
+            outline: none;
+        }
+
+        .base-url-form input:focus {
+            border-color: rgba(37, 99, 235, 0.72);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .base-url-form button {
+            height: 40px;
+            padding: 0 16px;
+            border: 1px solid #2563eb;
+            border-radius: 6px;
+            background: #2563eb;
+            color: #eff6ff;
+            font-family: var(--sans);
+            font-size: 0.86rem;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .rest-test-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .rest-test-actions button {
+            min-height: 40px;
+            padding: 0 16px;
+            border: 1px solid #2563eb;
+            border-radius: 6px;
+            background: #2563eb;
+            color: #eff6ff;
+            font-family: var(--sans);
+            font-size: 0.86rem;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .rest-test-actions button.secondary {
+            border-color: var(--border);
+            background: #ffffff;
+            color: var(--ink);
+        }
+
+        .base-url-status {
+            display: block;
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 0.84rem;
+            overflow-wrap: anywhere;
+        }
+
+        .base-url-status.error {
+            color: #b91c1c;
+        }
+
+        .swagger-shell {
+            overflow: hidden;
+        }
+
+        #swagger-ui {
+            padding: 12px 18px 28px;
+        }
+
+        .swagger-ui,
+        .swagger-ui .info,
+        .swagger-ui .opblock-tag,
+        .swagger-ui .opblock .opblock-summary-description,
+        .swagger-ui .opblock-description-wrapper p,
+        .swagger-ui .response-col_status,
+        .swagger-ui .response-col_links,
+        .swagger-ui .responses-inner h4,
+        .swagger-ui .responses-inner h5,
+        .swagger-ui section.models h4,
+        .swagger-ui section.models h5,
+        .swagger-ui .model-title,
+        .swagger-ui .parameter__name,
+        .swagger-ui .parameter__type,
+        .swagger-ui table thead tr td,
+        .swagger-ui table thead tr th {
+            color: var(--ink);
+        }
+
+        .swagger-ui .info {
+            margin: 0;
+        }
+
+        .swagger-ui .info .title,
+        .swagger-ui .scheme-container,
+        .swagger-ui .info .base-url {
+            display: none;
+        }
+
+        .swagger-ui .scheme-container {
+            box-shadow: none;
+            background: transparent;
+            padding: 0;
+        }
+
+        .swagger-ui .opblock-tag {
+            border-bottom-color: var(--border);
+            font-family: var(--sans);
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .swagger-ui .opblock-tag:hover {
+            background: rgba(37, 99, 235, 0.04);
+        }
+
+        .swagger-ui .opblock {
+            border-radius: 18px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+            border-width: 1px;
+            margin-bottom: 14px;
+        }
+
+        .swagger-ui .opblock .opblock-summary {
+            padding: 10px 14px;
+        }
+
+        .swagger-ui .btn,
+        .swagger-ui .authorization__btn,
+        .swagger-ui .download-contents,
+        .swagger-ui .try-out__btn {
+            border-radius: 6px;
+            min-height: 38px;
+            padding: 0 14px;
+            font-size: 0.86rem;
+            font-weight: 700;
+        }
+
+        .swagger-ui .btn.execute {
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+
+        .swagger-ui .btn.authorize {
+            color: #0f766e;
+            border-color: #0f766e;
+        }
+
+        .infrared-card {
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .infrared-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 14px;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .infrared-title h2 {
+            font-size: 1.12rem;
+            margin-bottom: 5px;
+        }
+
+        .infrared-title p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.55;
+            font-size: 0.92rem;
+        }
+
+        .infrared-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .infrared-actions button {
+            min-height: 40px;
+            padding: 0 16px;
+            border: 1px solid #2563eb;
+            border-radius: 6px;
+            background: #2563eb;
+            color: #eff6ff;
+            font-family: var(--sans);
+            font-size: 0.86rem;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .infrared-status {
+            color: var(--muted);
+            font-size: 0.86rem;
+        }
+
+        .infrared-status.error {
+            color: #b91c1c;
+        }
+
+        .infrared-layout {
+            display: grid;
+            grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+            gap: 22px;
+            align-items: start;
+        }
+
+        .infrared-map {
+            position: relative;
+            width: min(100%, 360px);
+            aspect-ratio: 241 / 386;
+            margin: 0 auto;
+            border-radius: 8px;
+            background:
+                radial-gradient(ellipse at 50% 12%, rgba(31, 41, 55, 0.10) 0 20%, transparent 21%),
+                linear-gradient(180deg, rgba(226, 232, 240, 0.45), rgba(248, 250, 252, 0.72));
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .infrared-robot-head,
+        .infrared-robot-body,
+        .infrared-robot-base {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 1px solid rgba(100, 116, 139, 0.38);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.84), rgba(203, 213, 225, 0.58));
+            box-shadow: inset 0 0 18px rgba(15, 23, 42, 0.08);
+        }
+
+        .infrared-robot-head {
+            top: 7%;
+            width: 48%;
+            height: 25%;
+            border-radius: 24% 24% 18% 18%;
+        }
+
+        .infrared-robot-screen {
+            position: absolute;
+            left: 50%;
+            top: 9%;
+            transform: translateX(-50%);
+            width: 36%;
+            height: 15%;
+            border-radius: 8px;
+            background: #1f2937;
+            opacity: 0.86;
+        }
+
+        .infrared-robot-body {
+            top: 34%;
+            width: 56%;
+            height: 43%;
+            border-radius: 20% 20% 10% 10%;
+        }
+
+        .infrared-robot-base {
+            top: 79%;
+            width: 78%;
+            height: 10%;
+            border-radius: 999px;
+        }
+
+        .infrared-arm {
+            position: absolute;
+            top: 35%;
+            width: 10%;
+            height: 25%;
+            border-radius: 999px;
+            border: 1px solid rgba(100, 116, 139, 0.35);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(203, 213, 225, 0.62));
+        }
+
+        .infrared-arm.left {
+            left: 18%;
+        }
+
+        .infrared-arm.right {
+            right: 18%;
+        }
+
+        .infrared-sensor {
+            position: absolute;
+            left: var(--x);
+            top: var(--y);
+            width: var(--size, 30px);
+            height: var(--size, 30px);
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.92);
+            background: hsl(var(--hue, 210), 88%, var(--light, 58%));
+            color: #ffffff;
+            display: grid;
+            place-items: center;
+            font-size: 0.74rem;
+            font-weight: 900;
+            text-shadow: 0 1px 2px rgba(15, 23, 42, 0.45);
+            box-shadow: 0 0 var(--glow, 0px) hsla(var(--hue, 210), 92%, 55%, 0.52), 0 7px 16px rgba(15, 23, 42, 0.16);
+        }
+
+        .infrared-readout {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+            gap: 10px;
+        }
+
+        .infrared-value {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.74);
+            padding: 10px 12px;
+        }
+
+        .infrared-value strong {
+            display: block;
+            color: var(--muted);
+            font-size: 0.74rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 5px;
+        }
+
+        .infrared-value span {
+            font-weight: 800;
+        }
+        .swagger-ui input[type=text],
+        .swagger-ui textarea,
+        .swagger-ui select {
+            border-radius: 12px;
+            border-color: var(--border);
+        }
+
+        .swagger-ui .model-box,
+        .swagger-ui .responses-inner,
+        .swagger-ui table tbody tr td,
+        .swagger-ui .parameters-col_description input,
+        .swagger-ui .parameters-col_description textarea {
+            background: #ffffff;
+        }
+
+        @media (max-width: 1050px) {
+            .hero,
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .base-url-control {
+                grid-column: span 1;
+            }
+
+            .infrared-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .base-url-form {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        html,
+        body {
+            min-height: 100%;
+            background: linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+        }
+
+        body * {
+            border-radius: 0 !important;
+        }
+
+        .infrared-robot-head {
+            border-radius: 24% 24% 18% 18% !important;
+        }
+
+        .infrared-robot-screen {
+            border-radius: 8px !important;
+        }
+
+        .infrared-robot-body {
+            border-radius: 20% 20% 10% 10% !important;
+        }
+
+        .infrared-robot-base,
+        .infrared-arm {
+            border-radius: 999px !important;
+        }
+
+        .infrared-sensor {
+            border-radius: 50% !important;
+        }
+
+        .suite-nav {
+            align-items: center;
+        }
+
+        .suite-link,
+        .theme-toggle,
+        .rest-test-actions button.secondary,
+        .summary-item,
+        .infrared-value,
+        .base-url-form input,
+        .swagger-ui input[type=text],
+        .swagger-ui textarea,
+        .swagger-ui select {
+            background: var(--control);
+            color: var(--ink);
+        }
+
+        .suite-link.current,
+        .base-url-form button,
+        .rest-test-actions button:not(.secondary),
+        .infrared-actions button,
+        .swagger-ui .btn.execute {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--on-accent);
+        }
+
+        .theme-toggle {
+            width: auto;
+            min-width: 116px;
+            min-height: 40px;
+            margin-left: auto;
+            padding: 0 14px;
+            border: 1px solid var(--border);
+            font-family: var(--sans);
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .badge {
+            background: var(--panel-soft);
+            color: var(--accent);
+        }
+
+        .hero-note,
+        .infrared-map,
+        .swagger-ui .model-box,
+        .swagger-ui .responses-inner,
+        .swagger-ui table tbody tr td,
+        .swagger-ui .parameters-col_description input,
+        .swagger-ui .parameters-col_description textarea {
+            background: var(--surface-soft);
+            color: var(--ink);
+            border-color: var(--border);
+        }
+
+        .swagger-ui,
+        .swagger-ui .info,
+        .swagger-ui .opblock-tag,
+        .swagger-ui .opblock .opblock-summary-description,
+        .swagger-ui .opblock-description-wrapper p,
+        .swagger-ui .response-col_status,
+        .swagger-ui .response-col_links,
+        .swagger-ui .responses-inner h4,
+        .swagger-ui .responses-inner h5,
+        .swagger-ui section.models h4,
+        .swagger-ui section.models h5,
+        .swagger-ui .model-title,
+        .swagger-ui .parameter__name,
+        .swagger-ui .parameter__type,
+        .swagger-ui table thead tr td,
+        .swagger-ui table thead tr th,
+        .swagger-ui .model,
+        .swagger-ui .prop-type,
+        .swagger-ui .parameter__in,
+        .swagger-ui label,
+        .swagger-ui p,
+        .swagger-ui h3 {
+            color: var(--ink);
+        }
+
+        .swagger-ui svg {
+            fill: var(--ink);
+        }
+
+        .swagger-ui .opblock,
+        .swagger-ui section.models {
+            background: var(--panel);
+            border-color: var(--border);
+            box-shadow: none;
+        }
+
+        .swagger-ui .opblock-tag:hover {
+            background: var(--panel-soft);
+        }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <nav class="suite-nav" aria-label="Bridge tools">
+        <a class="suite-link" href="websocket-console.html">WebSocket Console</a>
+        <a class="suite-link current" href="rest-console.html">REST Console</a>
+        <a class="suite-link" href="camera-console.html">Camera Console</a>
+        <a class="suite-link" href="dashboard-console.html">Dashboard Console</a>
+        <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">Dark mode</button>
+    </nav>
+
+    <section class="hero">
+        <div class="card hero-copy">
+            <div class="badge">REST Console</div>
+            <h1>Sanbot Bridge REST Explorer</h1>
+            <p class="sub">
+                Swagger-powered REST documentation for the bridge, kept inside the same tool suite as the
+                WebSocket and camera utilities. The layout stays Swagger-native, but the framing and styling
+                now match the rest of the toolkit.
+            </p>
+            <div class="hero-note">
+                This page is aligned with the current bridge routes, including `/v1/command/&lt;module&gt;/&lt;action&gt;`
+                where applicable, plus the helper `/status`, `/openapi`, and camera endpoints. REST requests may
+                include an optional correlation `id`; JSON responses echo it when present and report outcome with
+                numeric bridge result codes.
+            </div>
+        </div>
+
+        <div class="card summary-card">
+            <div class="summary-grid">
+                <div class="summary-item base-url-control">
+                    <strong>Base URL</strong>
+                    <form class="base-url-form" id="base-url-form">
+                        <input
+                            id="base-url-input"
+                            name="baseUrl"
+                            type="text"
+                            inputmode="url"
+                            autocomplete="url"
+                            spellcheck="false"
+                            placeholder="http://10.30.12.134:8088"
+                            aria-label="REST base URL"
+                        >
+                        <button type="submit">Apply</button>
+                    </form>
+                    <span class="base-url-status" id="base-url-status" aria-live="polite"></span>
+                </div>
+                <div class="summary-item api-key-control">
+                    <strong>API Key</strong>
+                    <form class="base-url-form" id="api-key-form">
+                        <input
+                            id="api-key-input"
+                            name="apiKey"
+                            type="text"
+                            autocomplete="off"
+                            spellcheck="false"
+                            placeholder="sanbot-bridge"
+                            aria-label="REST API key"
+                        >
+                        <button type="submit">Apply</button>
+                    </form>
+                    <span class="base-url-status" id="api-key-status" aria-live="polite"></span>
+                </div>
+                <div class="summary-item rest-test-control">
+                    <strong>Direct Browser Test</strong>
+                    <div class="rest-test-actions">
+                        <button type="button" class="secondary" id="rest-status-test-button">Status</button>
+                        <button type="button" id="rest-command-test-button">Head Light</button>
+                    </div>
+                    <span class="base-url-status" id="rest-test-status" aria-live="polite">No browser request sent from this page yet.</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Public Helpers</strong>
+                    <span>`GET /status` and `GET /openapi` work without the API key.</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Camera</strong>
+                    <span>Use REST for handler-backed routes such as `/v1/info/...`, `/v1/query/leds/whitelight`, `/v1/command/...`, `/v1/media/camera/image`, `/v1/media/camera/face`, and `/v1/media/audio/get`.</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Correlation</strong>
+                    <span>The browser console sends `api_key` and optional `id` as query parameters.</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Envelope</strong>
+                    <span>All responses return `message`. Code `0` says `OK`, code `4` says `SDK error`, and `data` is only present when extra payload data is available.</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card infrared-card">
+        <div class="infrared-header">
+            <div class="infrared-title">
+                <h2>Infrared Heat Map</h2>
+                <p>Snapshot of sensors 1-17 plotted on the robot front view. Blue is clear, red is close detection.</p>
+            </div>
+            <div class="infrared-actions">
+                <button type="button" id="infrared-snapshot-button">Snapshot</button>
+                <span class="infrared-status" id="infrared-status" aria-live="polite">No infrared snapshot loaded.</span>
+            </div>
+        </div>
+        <div class="infrared-layout">
+            <div class="infrared-map" id="infrared-map" aria-label="Infrared sensor heat map">
+                <div class="infrared-robot-head"></div>
+                <div class="infrared-robot-screen"></div>
+                <div class="infrared-arm left"></div>
+                <div class="infrared-arm right"></div>
+                <div class="infrared-robot-body"></div>
+                <div class="infrared-robot-base"></div>
+            </div>
+            <div class="infrared-readout" id="infrared-readout"></div>
+        </div>
+    </section>
+    <section class="card swagger-shell">
+        <div id="swagger-ui"></div>
+    </section>
+</div>
+
+<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<script>
+    const DEFAULT_REST_BASE_URL = "http://10.30.12.134:8088";
+    const LEGACY_REST_BASE_URL = "http://127.0.0.1:8088";
+    const REST_BASE_URL_STORAGE_KEY = "sanbot-rest-base-url";
+    const DEFAULT_API_KEY = "sanbot-bridge";
+    const API_KEY_STORAGE_KEY = "sanbot-rest-api-key";
+    const INFRARED_CLEAR_VALUE = 64;
+    const INFRARED_STRONG_VALUE = 4;
+    const INFRARED_SENSOR_LAYOUT = [
+        { part: 1, x: 73.4, y: 90.2 },
+        { part: 2, x: 32.8, y: 90.2 },
+        { part: 3, x: 84.6, y: 84.5 },
+        { part: 4, x: 75.9, y: 84.5 },
+        { part: 5, x: 66.8, y: 84.5 },
+        { part: 6, x: 57.3, y: 84.5 },
+        { part: 7, x: 46.5, y: 84.5 },
+        { part: 8, x: 36.5, y: 84.5 },
+        { part: 9, x: 27.4, y: 84.5 },
+        { part: 10, x: 18.7, y: 84.5 },
+        { part: 11, x: 39.4, y: 67.9 },
+        { part: 12, x: 56.4, y: 67.9 },
+        { part: 13, x: 50.2, y: 51.3 },
+        { part: 14, x: 19.9, y: 41.2 },
+        { part: 15, x: 20.3, y: 57.3 },
+        { part: 16, x: 80.9, y: 41.2 },
+        { part: 17, x: 80.9, y: 57.3 }
+    ];
+    let activeApiKey = DEFAULT_API_KEY;
+    let swaggerUi;
+
+    function buildRequestPaths() {
+        const paths = {};
+        const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
+        const object = (properties = {}, required = [], description) => ({
+            type: "object",
+            ...(description ? { description } : {}),
+            ...(required.length ? { required } : {}),
+            properties,
+            additionalProperties: false
+        });
+        const flexibleObject = (properties = {}, required = [], description) => ({
+            ...object(properties, required, description),
+            additionalProperties: true
+        });
+        const queryParameter = (name, schema, description, required = false) => ({
+            name, in: "query", required, schema, ...(description ? { description } : {})
+        });
+        const jsonResponses = (description) => ({
+            "200": { description, content: { "application/json": { schema: ref("CommandResponse") } } },
+            "400": { $ref: "#/components/responses/BadRequest" },
+            "401": { $ref: "#/components/responses/Unauthorized" },
+            "406": { $ref: "#/components/responses/NotAcceptable" }
+        });
+        const addInfo = (module, action, summary, parameters = []) => {
+            const responses = jsonResponses(summary);
+            delete responses["401"];
+            paths[`/v1/info/${module}/${action}`] = { get: {
+                tags: ["Info"], summary, security: [], parameters, responses
+            } };
+        };
+        const addPost = (type, module, action, summary, schema = null, bodyRequired = false) => {
+            const operation = {
+                tags: [type === "query" ? "Query" : "Command"],
+                summary,
+                responses: jsonResponses(`${summary} accepted`)
+            };
+            if (schema) operation.requestBody = {
+                required: bodyRequired,
+                content: { "application/json": { schema } }
+            };
+            paths[`/v1/${type}/${module}/${action}`] = { post: operation };
+        };
+        const addMedia = (module, action, summary, mimeType, parameters = []) => {
+            paths[`/v1/media/${module}/${action}`] = { get: {
+                tags: ["Media"], summary, parameters,
+                responses: {
+                    "200": { description: summary, content: { [mimeType]: { schema: { type: "string", format: "binary" } } } },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { description: "Requested media is not available" },
+                    "406": { $ref: "#/components/responses/NotAcceptable" }
+                }
+            } };
+        };
+
+        const boolean = { type: "boolean" };
+        const text = { type: "string" };
+        const camera = {
+            type: "string",
+            description: "Camera name: sanbot/head, android/body, or orbbec/3d. Orbbec names may include a sensor suffix such as orbbec-ir."
+        };
+        const cameraQuery = queryParameter("camera", camera, camera.description);
+        const cameraProperties = { camera };
+        const stream = {
+            type: "string",
+            enum: ["music", "tts", "system", "alarm", "voice_call", "ring", "notification"]
+        };
+        const ledProperties = {
+            color: { type: "string", enum: ["off", "white", "red", "green", "pink", "purple", "blue", "yellow"] },
+            flicker: { type: "integer", minimum: 0, maximum: 255, default: 0 },
+            random: { type: "integer", minimum: 0, maximum: 7, default: 0 }
+        };
+
+        // Info requests, in the same order as handleInfoRequest().
+        addInfo("bridge", "openapi", "Get the available OpenAPI endpoints");
+        addInfo("bridge", "status", "Get bridge unit status", [queryParameter("unit", {
+            type: "string",
+            enum: ["bridge", "system", "motion", "led", "face", "sensor", "camera", "audio", "tts", "asr"]
+        }, "Optional unit. Omit it to return all units.")]);
+        addInfo("bridge", "config", "Get bridge configuration");
+        addInfo("sensor", "orientation", "Get cached orientation data");
+        addInfo("sensor", "infrared", "Get aggregated infrared sensor data");
+        addInfo("camera", "features", "Get camera features", [cameraQuery]);
+        addInfo("audio", "volume", "Get audio volume", [queryParameter("stream", stream, "Optional Android audio stream")]);
+        addInfo("speech", "features", "Get speech features");
+        addInfo("speech", "status", "Get speech status");
+        addInfo("battery", "status", "Get battery status");
+        addInfo("script", "list", "Get available scripts");
+
+        // Query requests, in the same order as handleQueryRequest().
+        addPost("query", "led", "whitelight", "Query head white-light status",
+            object({ refid: { type: "string", description: "Reference id for the asynchronous result; defaults to the request id." } }));
+
+        // Command requests, in the same order as handleCommandRequest().
+        addPost("command", "robot", "move", "Move the robot", object({
+            direction: { type: "string", enum: ["forward", "backward", "left", "right", "left_forward", "right_forward", "left_backward", "right_backward", "left_turn", "right_turn", "left_circle", "right_circle", "stop_turn", "stop", "reset"] },
+            duration: { type: "integer", minimum: 0, default: 0, description: "Duration in units of 100 ms; zero continues until stopped." },
+            speed: { type: "integer", minimum: 1, maximum: 10, default: 5 }
+        }, ["direction"]), true);
+        addPost("command", "robot", "walk", "Walk the robot forward", object({
+            distance: { type: "integer", minimum: 0, description: "Distance in centimetres." },
+            speed: { type: "integer", minimum: 1, maximum: 10, default: 5 }
+        }, ["distance"]), true);
+        addPost("command", "robot", "turn", "Turn the robot", object({
+            direction: { type: "string", enum: ["left", "right", "stop"] },
+            angle: { type: "integer", minimum: 0, maximum: 360 },
+            speed: { type: "integer", minimum: 1, maximum: 10, default: 5 }
+        }, ["direction", "angle"]), true);
+        addPost("command", "robot", "modular", "Start or stop a modular motion mode", object({
+            mode: { type: "string", enum: ["wander", "follow", "duckrun"] },
+            action: { type: "string", enum: ["start", "stop"] },
+            info: text
+        }, ["mode", "action"]), true);
+        addPost("command", "robot", "stop", "Stop robot motion");
+        addPost("command", "robot", "reset", "Reset the robot");
+        const testProperties = { func: text };
+        for (let index = 1; index <= 9; index += 1) testProperties[`param${index}`] = text;
+        addPost("command", "robot", "test", "Run a bridge test function", object(testProperties, ["func"]), true);
+
+        addPost("command", "head", "move", "Move the head", ref("HeadMoveRequest"), true);
+        addPost("command", "head", "turn", "Turn the head", ref("HeadTurnRequest"), true);
+        addPost("command", "head", "nod", "Nod the head", ref("HeadNodRequest"), true);
+        addPost("command", "head", "location", "Move the head to an absolute location", object({
+            hangle: { type: "integer", minimum: -90, maximum: 90 },
+            vangle: { type: "integer", minimum: -13, maximum: 10 },
+            lock: { type: "string", enum: ["none", "horizontal", "vertical", "both"], default: "none" }
+        }, ["hangle", "vangle"]), true);
+        addPost("command", "head", "stop", "Stop head motion");
+        addPost("command", "head", "reset", "Reset the head position");
+        addPost("command", "head", "center", "Lock the head in its centre position");
+        addPost("command", "head", "whitelight", "Set the head white light", ref("HeadLightRequest"), true);
+        addPost("command", "head", "led", "Set a head LED", ref("HeadLedRequest"), true);
+
+        addPost("command", "arms", "move", "Move one or both arms", ref("ArmMoveRequest"), true);
+        addPost("command", "arms", "stop", "Stop arm motion", ref("ArmStopRequest"));
+        addPost("command", "arms", "reset", "Reset arm position", ref("ArmResetRequest"));
+        addPost("command", "arms", "led", "Set an arm LED", ref("ArmLedRequest"), true);
+
+        addPost("command", "led", "set", "Set a robot LED group", object({
+            part: { type: "string", enum: ["whitelight", "base", "left_head", "right_head", "left_arm", "right_arm", "all"] },
+            on: boolean,
+            brightness: { type: "integer", minimum: 1, maximum: 3 },
+            ...ledProperties
+        }, ["part"]), true);
+
+        addPost("command", "face", "emotion", "Set the face emotion", ref("FaceEmotionRequest"));
+        addPost("command", "sensor", "config", "Configure sensor reporting", ref("RobotSensorRequest"));
+        addPost("command", "camera", "config", "Configure a camera", flexibleObject({
+            ...cameraProperties, active: boolean, reset: boolean, reload: boolean, save: boolean
+        }));
+        addPost("command", "camera", "reset", "Reset a camera", flexibleObject(cameraProperties));
+        addPost("command", "camera", "snapshot", "Capture a Base64 snapshot", flexibleObject(cameraProperties));
+        addPost("command", "camera", "picture", "Capture a Base64 picture", flexibleObject(cameraProperties));
+        addPost("command", "camera", "face", "Get a cached Base64 face image", flexibleObject({
+            index: { type: "integer", minimum: 0, default: 0 }
+        }));
+
+        addPost("command", "audio", "volume", "Set audio volume", object({
+            stream, volume: { type: "integer", minimum: 0, maximum: 100 }
+        }, ["volume"]), true);
+        addPost("command", "audio", "play", "Play audio", ref("MediaPlayRequest"), true);
+        addPost("command", "audio", "record", "Record audio", flexibleObject({
+            length: { type: "integer", minimum: 0, maximum: 300, default: 0, description: "Recording length in seconds; zero uses the audio-unit default." },
+            save: {
+                oneOf: [{ type: "boolean" }, { type: "string" }], default: false,
+                description: "true saves with a timestamp name; a string saves under that filename; false keeps only cached WAV data."
+            }
+        }));
+        addPost("command", "audio", "stop", "Stop audio playback or recording");
+        addPost("command", "screen", "image", "Show an image on the robot screen", ref("MediaScreenRequest"));
+        addPost("command", "speech", "config", "Configure speech", flexibleObject({ reset: boolean, reload: boolean, save: boolean }));
+        addPost("command", "speech", "say", "Speak text", flexibleObject({ text: { type: "string", minLength: 1 } }, ["text"]), true);
+        addPost("command", "speech", "stop", "Stop speech output");
+        addPost("command", "speech", "listen", "Start speech recognition", object({ language: text }));
+
+        addPost("command", "battery", "config", "Configure battery charging", object({
+            mode: { type: "string", enum: ["auto", "manual"] },
+            level: { type: "integer", enum: [0, 10, 20, 30, 40], default: 0 }
+        }, ["mode"]), true);
+        addPost("command", "battery", "charge", "Start or cancel movement to the charging pile", object({
+            cancel: {
+                oneOf: [{ type: "boolean" }, { type: "integer", enum: [0, 1] }, { type: "string", enum: ["true", "false", "1", "0"] }],
+                default: false
+            }
+        }));
+        addPost("command", "script", "upload", "Upload a script", object({ name: text, content: text }, ["name", "content"]), true);
+        addPost("command", "script", "start", "Start a script", object({ name: text }, ["name"]), true);
+        addPost("command", "script", "stop", "Stop the current script");
+
+        // Media requests, in the same order as handleMediaRequest().
+        addMedia("camera", "picture", "Download a camera picture", "image/*", [cameraQuery]);
+        addMedia("camera", "snapshot", "Download a camera snapshot", "image/*", [cameraQuery]);
+        addMedia("camera", "face", "Download a cached face image", "image/*", [
+            queryParameter("index", { type: "integer", minimum: 0, default: 0 }, "Last-in, first-out image index")
+        ]);
+        addMedia("audio", "get", "Download recorded audio", "audio/wav", [
+            queryParameter("filename", text, "Optional filename relative to SanbotBridge/audio; omit it for cached WAV data")
+        ]);
+        return paths;
+    }
+
+    const spec = {
+        openapi: "3.0.3",
+        info: {
+            title: "Sanbot Bridge REST API",
+            version: "1.0.001",
+            description: "REST interface exposed by the Sanbot robot-side bridge app. Command bodies may be sent as direct payload objects, or as envelopes with optional `id` and nested `data`. REST ids are optional and are echoed in JSON responses when present. Responses always include `message`, include `data` only when extra payload data is available, and use bridge result code `0` for success, `1` for validation errors, `2` for protocol or routing errors, `3` for auth errors, and `4` for SDK errors."
+        },
+        servers: [
+            {
+                url: DEFAULT_REST_BASE_URL,
+                description: "Active bridge"
+            }
+        ],
+        tags: [
+            { name: "Info", description: "Synchronous information requests" },
+            { name: "Query", description: "Asynchronous queries" },
+            { name: "Command", description: "Robot commands" },
+            { name: "Media", description: "Binary media retrieval" }
+        ],
+        security: [
+            { ApiKeyAuth: [] }
+        ],
+        paths: buildRequestPaths(),
+        components: {
+            securitySchemes: {
+                ApiKeyAuth: {
+                    type: "apiKey",
+                    in: "query",
+                    name: "api_key"
+                }
+            },
+            parameters: {
+                RequestIdHeader: {
+                    name: "X-Request-Id",
+                    in: "header",
+                    required: false,
+                    schema: { type: "string" },
+                    description: "Optional REST request id. Echoed as `id` in JSON responses when present."
+                },
+                RequestIdQuery: {
+                    name: "id",
+                    in: "query",
+                    required: false,
+                    schema: { type: "string" },
+                    description: "Optional REST request id. Query `id` takes precedence over request-id headers if both are supplied."
+                }
+            },
+            responses: {
+                Unauthorized: {
+                    description: "Missing or invalid API key. Response code is 3.",
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CommandResponse" }
+                        }
+                    }
+                },
+                BadRequest: {
+                    description: "Invalid request body, command parameters, protocol, or routing. Response code is 1 or 2.",
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CommandResponse" }
+                        }
+                    }
+                },
+                NotAcceptable: {
+                    description: "Request parameters are syntactically valid JSON but not acceptable for this command.",
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CommandResponse" }
+                        }
+                    }
+                },                ServiceUnavailable: {
+                    description: "Camera stream is unavailable or no capture is ready yet. Response code is 4.",
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CommandResponse" }
+                        }
+                    }
+                }
+            },
+            schemas: {
+                CommandResponse: {
+                    type: "object",
+                    required: ["type", "code", "message"],
+                    properties: {
+                        id: {
+                            type: "string",
+                            nullable: true,
+                            description: "Optional id copied from the REST request when supplied."
+                        },
+                        type: {
+                            type: "string",
+                            enum: ["response"]
+                        },
+                        code: {
+                            type: "integer",
+                            enum: [0, 1, 2, 3, 4],
+                            description: "0 ok, 1 validation error, 2 protocol/routing error, 3 auth/permission error, 4 SDK error."
+                        },
+                        message: {
+                            type: "string",
+                            description: "`OK` for code 0, `SDK error` for code 4, and the actual bridge-owned error message for codes 1, 2, and 3."
+                        },
+                        data: {
+                            type: "object",
+                            nullable: true,
+                            description: "Optional extra payload object. Code 0 carries parsed SDK result data when available. Code 4 copies the SDK OperationResult fields.",
+                            additionalProperties: true,
+                            properties: {
+                                errorCode: { type: "integer" },
+                                description: { type: "string", nullable: true },
+                                result: { type: "string", nullable: true },
+                                value: {
+                                    nullable: true,
+                                    description: "Wrapper used when an SDK success result is not a JSON object.",
+                                    oneOf: [
+                                        { type: "object" },
+                                        { type: "array" },
+                                        { type: "string" },
+                                        { type: "number" },
+                                        { type: "boolean" }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                RestRequestEnvelope: {
+                    type: "object",
+                    properties: {
+                        id: {
+                            type: "string",
+                            description: "Optional REST request id. WebSocket ids are mandatory; REST ids are only used for correlation."
+                        },
+                        data: {
+                            type: "object",
+                            description: "Command payload object. Existing REST clients may still send the payload directly without this wrapper."
+                        }
+                    }
+                },
+                StatusResponse: {
+                    allOf: [
+                        { $ref: "#/components/schemas/CommandResponse" },
+                        {
+                            type: "object",
+                            properties: {
+                                data: { $ref: "#/components/schemas/StatusData" }
+                            }
+                        }
+                    ]
+                },
+                StatusData: {
+                    type: "object",
+                    properties: {
+                        ip: { type: "string" },
+                        port: { type: "integer" },
+                        webSocketPath: { type: "string" },
+                        webSocketUrl: { type: "string" },
+                        connectedWebSockets: { type: "integer" },
+                        emulatorMode: { type: "boolean" },
+                        mainServiceConnected: { type: "boolean" },
+                        sdkMainServiceConnected: { type: "boolean" },
+                        hardwareManagerConnected: { type: "boolean" },
+                        cameraConnected: { type: "boolean" },
+                        cameraStreamOpen: { type: "boolean" },
+                        cameraStatus: { type: "string" },
+                        lastFrameTimestamp: { type: "integer", format: "int64" },
+                        keepActivityVisible: { type: "boolean" },
+                        activityVisible: { type: "boolean" },
+                        heldEmotion: { type: "string", nullable: true },
+                        heldEmotionRefreshSeconds: { type: "integer" },
+                        heldEmotionDurationSeconds: { type: "integer" },
+                        ttsSettings: {
+                            type: "object",
+                            properties: {
+                                engine: { type: "string" },
+                                language: { type: "string" },
+                                voice: { type: "string" },
+                                speed: { type: "integer" },
+                                pitch: { type: "integer" }
+                            }
+                        },
+                        status: { type: "string" }
+                    }
+                },
+                HeadLightRequest: {
+                    type: "object",
+                    properties: {
+                        on: {
+                            oneOf: [
+                                { type: "boolean" },
+                                { type: "string", enum: ["on", "off"] }
+                            ],
+                            default: true,
+                            description: "true/on switches the light on; false/off switches it off."
+                        },
+                        brightness: {
+                            type: "integer",
+                            minimum: 1,
+                            maximum: 3,
+                            default: 3,
+                            description: "Optional white head light brightness: 1 energy-saving, 2 soft, 3 bright."
+                        }
+                    }
+                },
+                RobotLedRequest: {
+                    type: "object",
+                    properties: {
+                        part: {
+                            type: "string",
+                            enum: ["all", "left_head", "right_head", "left_arm", "right_arm", "base", "whitelight"],
+                            default: "all"
+                        },
+                        color: {
+                            type: "string",
+                            enum: ["off", "white", "red", "green", "pink", "purple", "blue", "yellow"],
+                            default: "blue"
+                        },
+                        flicker: {
+                            type: "integer",
+                            minimum: 0,
+                            maximum: 255,
+                            default: 0
+                        },
+                        random: {
+                            type: "integer",
+                            minimum: 0,
+                            maximum: 7,
+                            default: 0
+                        }
+                    }
+                },
+                ArmMoveRequest: {
+                    type: "object",
+                    description: "For continuous movement, send `direction` without `angle`. For absolute angle movement, send `angle` without `direction`. For relative angle movement, send both `direction` and `angle`.",
+                    properties: {
+                        side: {
+                            type: "string",
+                            enum: ["left", "right", "both"],
+                            default: "both"
+                        },
+                        direction: {
+                            type: "string",
+                            enum: ["up", "down"]
+                        },
+                        angle: {
+                            type: "integer",
+                            minimum: 0,
+                            maximum: 270
+                        },
+                        speed: {
+                            type: "integer",
+                            default: 5,
+                            minimum: 1,
+                            maximum: 8
+                        }
+                    }
+                },
+                ArmStopRequest: {
+                    type: "object",
+                    properties: {
+                        part: {
+                            type: "string",
+                            enum: ["left", "right", "both"],
+                            default: "both"
+                        }
+                    }
+                },
+                ArmResetRequest: {
+                    type: "object",
+                    properties: {
+                        part: {
+                            type: "string",
+                            enum: ["left", "right", "both"],
+                            default: "both"
+                        },
+                        speed: {
+                            type: "integer",
+                            default: 5,
+                            minimum: 1,
+                            maximum: 8
+                        }
+                    }
+                },
+                ArmLedRequest: {
+                    type: "object",
+                    required: ["side"],
+                    properties: {
+                        side: {
+                            type: "string",
+                            enum: ["left", "right"]
+                        },
+                        color: {
+                            type: "string",
+                            enum: ["off", "white", "red", "green", "pink", "purple", "blue", "yellow"],
+                            default: "blue"
+                        },
+                        flicker: {
+                            type: "integer",
+                            minimum: 0,
+                            maximum: 255,
+                            default: 0
+                        },
+                        random: {
+                            type: "integer",
+                            minimum: 0,
+                            maximum: 7,
+                            default: 0
+                        }
+                    }
+                },
+                HeadTurnRequest: {
+                    type: "object",
+                    required: ["angle"],
+                    properties: {
+                        direction: {
+                            type: "string",
+                            enum: ["left", "right"],
+                            description: "Optional. Omit for absolute horizontal movement. Send `left` or `right` for relative movement."
+                        },
+                        angle: {
+                            type: "integer",
+                            default: 0,
+                            minimum: -90,
+                            maximum: 180,
+                            description: "Absolute movement uses centered -90..90. Relative left/right movement uses 0..180."
+                        }
+                    }
+                },
+                HeadNodRequest: {
+                    type: "object",
+                    required: ["angle"],
+                    properties: {
+                        direction: {
+                            type: "string",
+                            enum: ["up", "down"],
+                            description: "Optional. Omit for absolute vertical movement. Send `up` or `down` for relative movement."
+                        },
+                        angle: {
+                            type: "integer",
+                            default: 0,
+                            minimum: -13,
+                            maximum: 25,
+                            description: "Absolute movement uses centered -13..10. Relative up/down movement uses 0..25."
+                        }
+                    }
+                },
+                HeadMoveRequest: {
+                    type: "object",
+                    required: ["direction"],
+                    properties: {
+                        direction: {
+                            type: "string",
+                            enum: ["up", "down", "left", "right", "left_up", "right_up", "left_down", "right_down", "vertical", "horizontal"],
+                            description: "`up`, `down`, `left`, and `right` can omit `angle` to move to an extreme absolute position. `vertical`, `horizontal`, and diagonal directions require `angle`."
+                        },
+                        angle: {
+                            type: "integer",
+                            default: 0,
+                            minimum: -90,
+                            maximum: 180,
+                            description: "Absolute horizontal uses centered -90..90. Absolute vertical uses centered -13..10. Relative horizontal uses 0..180. Relative vertical and diagonal use 0..25."
+                        }
+                    }
+                },
+                HeadLedRequest: {
+                    type: "object",
+                    required: ["side"],
+                    properties: {
+                        side: {
+                            type: "string",
+                            enum: ["left", "right"],
+                            default: "left"
+                        },
+                        color: {
+                            type: "string",
+                            enum: ["off", "white", "red", "green", "pink", "purple", "blue", "yellow"],
+                            default: "blue"
+                        },
+                        flicker: {
+                            type: "integer",
+                            minimum: 0,
+                            maximum: 255,
+                            default: 0
+                        },
+                        random: {
+                            type: "integer",
+                            minimum: 0,
+                            maximum: 7,
+                            default: 0
+                        }
+                    }
+                },
+                RobotMoveRequest: {
+                    type: "object",
+                    required: ["direction", "duration"],
+                    properties: {
+                        direction: {
+                            type: "string",
+                            enum: ["forward", "back", "left", "right", "turn_left", "turn_right"]
+                        },
+                        speed: {
+                            type: "integer",
+                            default: 5,
+                            minimum: 1,
+                            maximum: 10
+                        },
+                        duration: {
+                            type: "integer",
+                            description: "Duration in 100 ms units.",
+                            default: 10,
+                            minimum: 1
+                        }
+                    }
+                },
+                RobotWalkRequest: {
+                    type: "object",
+                    required: ["distance"],
+                    properties: {
+                        sensitivity: {
+                            type: "integer",
+                            description: "Forward distance in centimeters.",
+                            default: 50,
+                            minimum: 1
+                        },
+                        speed: {
+                            type: "integer",
+                            default: 5,
+                            minimum: 1,
+                            maximum: 10
+                        }
+                    }
+                },
+                RobotTurnRequest: {
+                    type: "object",
+                    required: ["direction", "angle"],
+                    properties: {
+                        direction: {
+                            type: "string",
+                            enum: ["left", "right"],
+                            default: "left"
+                        },
+                        angle: {
+                            type: "integer",
+                            description: "Relative turn angle in degrees.",
+                            default: 90,
+                            minimum: 1
+                        },
+                        speed: {
+                            type: "integer",
+                            default: 5,
+                            minimum: 1,
+                            maximum: 10
+                        }
+                    }
+                },
+                RobotSensorRequest: {
+                    type: "object",
+                    description: "Map of sensor names to scalar enable states or per-sensor settings objects. Add save=true to persist the updated values in the sensorParams config block.",
+                    properties: {
+                        all: {
+                            oneOf: [{ type: "boolean" }, { type: "string", enum: ["enable", "disable"] }],
+                            description: "Enable or disable all sensors; if supplied, other sensor properties are ignored."
+                        },
+                        reset: {
+                            type: "boolean",
+                            description: "Reset all sensor settings to their default values and ignore other payload properties when true.",
+                            default: false
+                        },
+                        save: {
+                            type: "boolean",
+                            description: "Write the updated sensor settings to the configuration file when true.",
+                            default: false
+                        },
+                        pir: { oneOf: [{ type: "boolean" }, { type: "string", enum: ["enable", "disable"] }, { $ref: "#/components/schemas/GenericSensorSettings" }] },
+                        obstacle: { oneOf: [{ type: "boolean" }, { type: "string", enum: ["enable", "disable"] }, { $ref: "#/components/schemas/GenericSensorSettings" }] },
+                        touch: { oneOf: [{ type: "boolean" }, { type: "string", enum: ["enable", "disable"] }, { $ref: "#/components/schemas/GenericSensorSettings" }] },
+                        infrared: { oneOf: [{ type: "boolean" }, { type: "string", enum: ["enable", "disable"] }, { $ref: "#/components/schemas/InfraredSensorSettings" }] },
+                        voicelocate: { oneOf: [{ type: "boolean" }, { type: "string", enum: ["enable", "disable"] }, { $ref: "#/components/schemas/GenericSensorSettings" }] },
+                        orientation: { oneOf: [{ type: "boolean" }, { type: "string", enum: ["enable", "disable"] }, { $ref: "#/components/schemas/OrientationSensorSettings" }] },
+                    },
+                    additionalProperties: true
+                },
+                GenericSensorSettings: {
+                    type: "object",
+                    properties: {
+                        enable: {
+                            oneOf: [{ type: "boolean" }, { type: "string", enum: ["enable", "disable"] }],
+                            description: "Enable or disable the sensor."
+                        }
+                    },
+                    additionalProperties: true
+                },
+                OrientationSensorSettings: {
+                    type: "object",
+                    properties: {
+                        enable: {
+                            oneOf: [{ type: "boolean" }, { type: "string", enum: ["enable", "disable"] }],
+                            description: "Enable or disable orientation events."
+                        },
+                        sensitivity: {
+                            type: "integer",
+                            description: "Orientation event sensitivity from 0 to 100. Higher values relay smaller per-axis changes.",
+                            default: 90
+                        }
+                    },
+                    additionalProperties: true
+                },
+                InfraredSensorSettings: {
+                    type: "object",
+                    properties: {
+                        enable: {
+                            oneOf: [{ type: "boolean" }, { type: "string", enum: ["enable", "disable"] }],
+                            description: "Enable or disable the infrared sensor events."
+                        },
+                        update: {
+                            type: "integer",
+                            description: "Infrared report interval in milliseconds.",
+                            default: 1000
+                        },
+                        sensitivity: {
+                            type: "integer",
+                            description: "Infrared event sensitivity from 0 to 100. Higher values relay smaller map changes.",
+                            default: 90
+                        }
+                    },
+                    additionalProperties: true
+                },
+                MediaConfigRequest: {
+                    type: "object",
+                    required: ["volume"],
+                    properties: {
+                        volume: {
+                            type: "integer",
+                            description: "Target audio volume from 0 to 100.",
+                            minimum: 0,
+                            maximum: 100,
+                            default: 50
+                        }
+                    }
+                },
+                SpeechRequest: {
+                    type: "object",
+                    required: ["text"],
+                    properties: {
+                        text: {
+                            type: "string",
+                            minLength: 1
+                        },
+                        language: {
+                            type: "string",
+                            description: "Android language tag such as en-US or nl-NL, or Sanbot language when Sanbot TTS is selected."
+                        },
+                        voice: {
+                            type: "string",
+                            description: "Optional Android TTS voice name."
+                        },
+                        enginePackage: {
+                            type: "string",
+                            description: "Optional Android TTS engine package, for example com.google.android.tts."
+                        },
+                        speed: {
+                            type: "integer",
+                            description: "Optional platform-independent speech speed from 0 to 200; 100 is normal.",
+                            minimum: 0,
+                            maximum: 200
+                        },
+                        pitch: {
+                            type: "integer",
+                            description: "Optional platform-independent speech pitch from 0 to 200; 100 is normal.",
+                            minimum: 0,
+                            maximum: 200
+                        }
+                    }
+                },
+                SpeechSettingsRequest: {
+                    type: "object",
+                    properties: {
+                        reset: {
+                            type: "boolean",
+                            description: "Reset speech settings to defaults instead of applying supplied values.",
+                            default: false
+                        },
+                        save: {
+                            type: "boolean",
+                            description: "Persist updated settings when true.",
+                            default: true
+                        },
+                        language: {
+                            type: "string",
+                            description: "Optional Sanbot language code/name, or Android language tag such as en-US or nl-NL when Android TTS is selected.",
+                            default: "en",
+                            enum: [
+                                "zh",
+                                "chinese",
+                                "en",
+                                "en_us",
+                                "english",
+                                "es",
+                                "spanish",
+                                "fr",
+                                "french",
+                                "pt",
+                                "portuguese",
+                                "ar",
+                                "arabic",
+                                "ja",
+                                "japanese",
+                                "it",
+                                "italian",
+                                "pl",
+                                "polish",
+                                "tr",
+                                "turkish",
+                                "da",
+                                "danish",
+                                "ko",
+                                "korean",
+                                "de",
+                                "german"
+                            ]
+                        },
+                        speed: {
+                            type: "integer",
+                            description: "Optional platform-independent speech speed from 0 to 200; 100 is normal.",
+                            default: 100,
+                            minimum: 0,
+                            maximum: 200
+                        },
+                        pitch: {
+                            type: "integer",
+                            description: "Optional platform-independent speech pitch from 0 to 200; 100 is normal.",
+                            default: 100,
+                            minimum: 0,
+                            maximum: 200
+                        },
+                        voice: {
+                            type: "string",
+                            description: "Optional Android TTS voice name."
+                        },
+                        enginePackage: {
+                            type: "string",
+                            description: "Optional Android TTS engine package, for example com.google.android.tts."
+                        }
+                    }
+                },
+                MediaScreenRequest: {
+                    type: "object",
+                    properties: {
+                        filename: {
+                            type: "string",
+                            description: "Optional image file name relative to `/sdcard/SanbotBridge/images`, for example `welcome.png`. Omit it to show the normal SanbotBridge main window."
+                        }
+                    }
+                },
+                MediaPlayRequest: {
+                    type: "object",
+                    description: "Audio playback source. Specify exactly one of url or filename.",
+                    properties: {
+                        url: {
+                            type: "string",
+                            format: "uri",
+                            description: "HTTP(S) URL of an audio file or stream supported by Android MediaPlayer."
+                        },
+                        filename: {
+                            type: "string",
+                            description: "Audio file name relative to `/sdcard/SanbotBridge/audio`, for example `test.wav`. Absolute paths are rejected."
+                        },
+                        stream: {
+                            type: "string",
+                            description: "Optional Android output stream. Defaults to `music`.",
+                            enum: ["music", "tts", "alarm", "ring", "system", "notification", "voice_call"]
+                        }
+                    }
+                },                FaceEmotionRequest: {
+                    type: "object",
+                    properties: {
+                        emotion: {
+                            type: "string",
+                            description: "Optional. Emotion name accepted by the robot SDK. Omit it to revert to NORMAL.",
+                            enum: [
+                                "ARROGANCE",
+                                "SURPRISE",
+                                "WHISTLE",
+                                "LAUGHTER",
+                                "GOODBYE",
+                                "SHY",
+                                "SWEAT",
+                                "SNICKER",
+                                "PICKNOSE",
+                                "CRY",
+                                "ABUSE",
+                                "ANGRY",
+                                "KISS",
+                                "SLEEP",
+                                "SMILE",
+                                "GRIEVANCE",
+                                "QUESTION",
+                                "FAINT",
+                                "PRISE",
+                                "SPEAK",
+                                "EXCITEMENT",
+                                "NORMAL"
+                            ]
+                        },
+                        refresh: {
+                            type: "integer",
+                            description: "Optional. Re-send the emotion every N seconds to keep it active.",
+                            minimum: 0,
+                            maximum: 30,
+                            default: 4
+                        },
+                        duration: {
+                            type: "integer",
+                            description: "Optional. Only used with refresh. After this many seconds the face returns to NORMAL.",
+                            minimum: 0
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    function applyRestEnvelopeConventions(openApiSpec) {
+        const requestIdParameters = [
+            { $ref: "#/components/parameters/RequestIdQuery" }
+        ];
+
+        Object.values(openApiSpec.paths).forEach((pathItem) => {
+            ["get", "post", "put", "patch", "delete"].forEach((method) => {
+                const operation = pathItem[method];
+                if (!operation) {
+                    return;
+                }
+
+                operation.parameters = [
+                    ...(operation.parameters || []),
+                    ...requestIdParameters
+                ];
+
+                const jsonContent = operation.requestBody
+                    && operation.requestBody.content
+                    && operation.requestBody.content["application/json"];
+                if (!jsonContent || !jsonContent.schema) {
+                    return;
+                }
+
+                const payloadSchema = jsonContent.schema;
+                jsonContent.schema = {
+                    oneOf: [
+                        payloadSchema,
+                        {
+                            type: "object",
+                            description: "REST request envelope with optional correlation id.",
+                            properties: {
+                                id: {
+                                    type: "string",
+                                    description: "Optional REST request id echoed in JSON responses."
+                                },
+                                data: payloadSchema
+                            }
+                        }
+                    ]
+                };
+            });
+        });
+    }
+
+    function normalizeRestBaseUrl(value) {
+        const trimmed = (value || "").trim();
+        if (!trimmed) {
+            return DEFAULT_REST_BASE_URL;
+        }
+
+        const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)
+            ? trimmed
+            : `http://${trimmed}`;
+
+        try {
+            const url = new URL(withScheme);
+            if (url.protocol !== "http:" && url.protocol !== "https:") {
+                return null;
+            }
+            url.search = "";
+            url.hash = "";
+            const normalized = url.toString();
+            return normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function readSavedRestBaseUrl() {
+        try {
+            const savedBaseUrl = localStorage.getItem(REST_BASE_URL_STORAGE_KEY);
+            if (!savedBaseUrl || savedBaseUrl === LEGACY_REST_BASE_URL) {
+                return DEFAULT_REST_BASE_URL;
+            }
+            return savedBaseUrl;
+        } catch (error) {
+            return DEFAULT_REST_BASE_URL;
+        }
+    }
+
+    function saveRestBaseUrl(baseUrl) {
+        try {
+            localStorage.setItem(REST_BASE_URL_STORAGE_KEY, baseUrl);
+        } catch (error) {
+            // Some file:// contexts disable local storage. The active page state still works.
+        }
+    }
+
+    function readSavedApiKey() {
+        try {
+            return localStorage.getItem(API_KEY_STORAGE_KEY) || DEFAULT_API_KEY;
+        } catch (error) {
+            return DEFAULT_API_KEY;
+        }
+    }
+
+    function saveApiKey(apiKey) {
+        try {
+            localStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
+        } catch (error) {
+            // Some file:// contexts disable local storage. The active page state still works.
+        }
+    }
+
+    function setApiKeyStatus(message, isError) {
+        const status = document.getElementById("api-key-status");
+        if (!status) {
+            return;
+        }
+        status.textContent = message;
+        status.classList.toggle("error", Boolean(isError));
+    }
+
+    function applyApiKey(value, persist) {
+        const apiKey = (value || "").trim();
+        if (!apiKey) {
+            setApiKeyStatus("API key is required for command routes.", true);
+            return false;
+        }
+
+        const input = document.getElementById("api-key-input");
+        activeApiKey = apiKey;
+        if (input) {
+            input.value = apiKey;
+        }
+        if (persist) {
+            saveApiKey(apiKey);
+        }
+        setApiKeyStatus("Sending api_key on Swagger requests.", false);
+        return true;
+    }
+
+    function getCurrentApiKey() {
+        const input = document.getElementById("api-key-input");
+        const apiKey = ((input && input.value) || activeApiKey || DEFAULT_API_KEY).trim();
+        if (apiKey) {
+            activeApiKey = apiKey;
+        }
+        return apiKey;
+    }
+
+    function setRestTestStatus(message, isError) {
+        const status = document.getElementById("rest-test-status");
+        if (!status) {
+            return;
+        }
+        status.textContent = message;
+        status.classList.toggle("error", Boolean(isError));
+    }
+
+    function getCurrentRestBaseUrl() {
+        const input = document.getElementById("base-url-input");
+        return normalizeRestBaseUrl((input && input.value) || DEFAULT_REST_BASE_URL);
+    }
+
+    function buildBridgeUrl(path, parameters) {
+        const baseUrl = getCurrentRestBaseUrl();
+        if (!baseUrl) {
+            return null;
+        }
+
+        const url = new URL(path, `${baseUrl}/`);
+        Object.entries(parameters || {}).forEach(function ([name, value]) {
+            if (value !== null && value !== undefined && value !== "") {
+                url.searchParams.set(name, value);
+            }
+        });
+        return url.toString();
+    }
+
+    async function readFetchPayload(response) {
+        const text = await response.text();
+        if (!text) {
+            return "";
+        }
+        try {
+            return JSON.stringify(JSON.parse(text));
+        } catch (error) {
+            return text;
+        }
+    }
+
+    async function sendDirectRestStatusTest() {
+        const requestId = `html-status-${Date.now()}`;
+        const url = buildBridgeUrl("/status", { id: requestId });
+        if (!url) {
+            setRestTestStatus("Direct status test failed: invalid base URL.", true);
+            return;
+        }
+
+        setRestTestStatus(`Sending GET ${url}`, false);
+        try {
+            const response = await fetch(url, { method: "GET", mode: "cors", cache: "no-store" });
+            const payload = await readFetchPayload(response);
+            setRestTestStatus(`Status test HTTP ${response.status}: ${payload}`, !response.ok);
+        } catch (error) {
+            setRestTestStatus(`Status test blocked before HTTP response: ${error.name}: ${error.message}`, true);
+        }
+    }
+
+    function setInfraredStatus(message, isError) {
+        const status = document.getElementById("infrared-status");
+        if (!status) {
+            return;
+        }
+        status.textContent = message;
+        status.classList.toggle("error", Boolean(isError));
+    }
+
+    function extractInfraredReport(payload) {
+        const result = payload && payload.data && payload.data.result;
+        if (!result) {
+            return null;
+        }
+        return result.latestReport || result.infraredReport || result;
+    }
+
+    function readInfraredValue(partData) {
+        if (!partData) {
+            return null;
+        }
+        if (typeof partData.average === "number") {
+            return partData.average;
+        }
+        if (typeof partData.last === "number") {
+            return partData.last;
+        }
+        if (typeof partData.min === "number") {
+            return partData.min;
+        }
+        return null;
+    }
+
+    function infraredStrengthFromValue(value) {
+        if (typeof value !== "number") {
+            return 0;
+        }
+        const strength = (INFRARED_CLEAR_VALUE - value) / (INFRARED_CLEAR_VALUE - INFRARED_STRONG_VALUE);
+        return Math.max(0, Math.min(1, strength));
+    }
+
+    function renderInfraredHeatMap(report) {
+        const map = document.getElementById("infrared-map");
+        const readout = document.getElementById("infrared-readout");
+        if (!map || !readout) {
+            return;
+        }
+
+        map.querySelectorAll(".infrared-sensor").forEach(function (node) {
+            node.remove();
+        });
+        readout.innerHTML = "";
+
+        const byPart = new Map();
+        (report && Array.isArray(report.parts) ? report.parts : []).forEach(function (partData) {
+            byPart.set(Number(partData.part), partData);
+        });
+
+        INFRARED_SENSOR_LAYOUT.forEach(function (sensor) {
+            const partData = byPart.get(sensor.part);
+            const value = readInfraredValue(partData);
+            const strength = partData && typeof partData.strength === "number" ? partData.strength : infraredStrengthFromValue(value);
+            const hue = Math.round(210 - (210 * strength));
+            const size = 24 + Math.round(strength * 18);
+            const marker = document.createElement("div");
+            marker.className = "infrared-sensor";
+            marker.style.setProperty("--x", `${sensor.x}%`);
+            marker.style.setProperty("--y", `${sensor.y}%`);
+            marker.style.setProperty("--hue", String(hue));
+            marker.style.setProperty("--light", `${56 - (strength * 10)}%`);
+            marker.style.setProperty("--size", `${size}px`);
+            marker.style.setProperty("--glow", `${Math.round(strength * 30)}px`);
+            marker.textContent = String(sensor.part);
+            marker.title = `Sensor ${sensor.part}: ${value === null ? "no sample" : value.toFixed(1)}, strength ${(strength * 100).toFixed(0)}%`;
+            map.appendChild(marker);
+
+            const item = document.createElement("div");
+            item.className = "infrared-value";
+            const label = document.createElement("strong");
+            label.textContent = `Sensor ${sensor.part}`;
+            const valueText = document.createElement("span");
+            valueText.textContent = value === null ? "no sample" : `${value.toFixed(1)} / ${Math.round(strength * 100)}%`;
+            item.appendChild(label);
+            item.appendChild(valueText);
+            readout.appendChild(item);
+        });
+    }
+
+    async function takeInfraredSnapshot() {
+        const apiKey = getCurrentApiKey();
+        const url = buildBridgeUrl("/v1/info/sensor/infrared", { api_key: apiKey, id: `html-infrared-${Date.now()}` });
+        if (!url) {
+            setInfraredStatus("Infrared snapshot failed: invalid base URL.", true);
+            return;
+        }
+
+        setInfraredStatus("Reading infrared snapshot...", false);
+        try {
+            const response = await fetch(url, { method: "GET", mode: "cors", cache: "no-store" });
+            const text = await response.text();
+            const payload = text ? JSON.parse(text) : null;
+            if (!response.ok) {
+                setInfraredStatus(`Infrared snapshot HTTP ${response.status}.`, true);
+                return;
+            }
+            const report = extractInfraredReport(payload);
+            if (!report || !Array.isArray(report.parts)) {
+                setInfraredStatus("Infrared snapshot response did not include report parts.", true);
+                return;
+            }
+            renderInfraredHeatMap(report);
+            const strongest = report.strongest && report.strongest.part !== undefined ? ` Strongest: ${report.strongest.part}.` : "";
+            setInfraredStatus(`Snapshot loaded.${strongest}`, false);
+        } catch (error) {
+            setInfraredStatus(`Infrared snapshot failed: ${error.name}: ${error.message}`, true);
+        }
+    }
+    async function sendDirectHeadCommandTest() {
+        const apiKey = getCurrentApiKey();
+        if (!apiKey) {
+            setRestTestStatus("Head light test failed: API key is empty.", true);
+            return;
+        }
+
+        const requestId = `html-head-${Date.now()}`;
+        const url = buildBridgeUrl("/v1/command/head/whitelight", { api_key: apiKey, id: requestId });
+        if (!url) {
+            setRestTestStatus("Head light test failed: invalid base URL.", true);
+            return;
+        }
+
+        setRestTestStatus(`Sending POST ${url}`, false);
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                mode: "cors",
+                cache: "no-store",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ on: true, brightness: 3 })
+            });
+            const payload = await readFetchPayload(response);
+            setRestTestStatus(`Head light test HTTP ${response.status}: ${payload}`, !response.ok);
+        } catch (error) {
+            setRestTestStatus(`Head light test blocked before HTTP response: ${error.name}: ${error.message}`, true);
+        }
+    }
+
+    function removeRequestHeader(headers, name) {
+        if (!headers) {
+            return;
+        }
+        if (typeof headers.delete === "function") {
+            headers.delete(name);
+            headers.delete(name.toLowerCase());
+            return;
+        }
+        Object.keys(headers).forEach(function (key) {
+            if (key.toLowerCase() === name.toLowerCase()) {
+                delete headers[key];
+            }
+        });
+    }
+
+    function upsertQueryParameter(url, name, value) {
+        const source = String(url || "");
+        const hashIndex = source.indexOf("#");
+        const withoutHash = hashIndex >= 0 ? source.slice(0, hashIndex) : source;
+        const hash = hashIndex >= 0 ? source.slice(hashIndex) : "";
+        const queryIndex = withoutHash.indexOf("?");
+        const base = queryIndex >= 0 ? withoutHash.slice(0, queryIndex) : withoutHash;
+        const query = queryIndex >= 0 ? withoutHash.slice(queryIndex + 1) : "";
+        const parameters = new URLSearchParams(query);
+        parameters.set(name, value);
+        return `${base}?${parameters.toString()}${hash}`;
+    }
+
+    function handleSwaggerRequest(request) {
+        if (!request) {
+            return request;
+        }
+        if (!request.headers || typeof request.headers !== "object") {
+            request.headers = {};
+        }
+
+        removeRequestHeader(request.headers, "X-Request-Id");
+        removeRequestHeader(request.headers, "X-API-Key");
+        if (activeApiKey && request.url) {
+            request.url = upsertQueryParameter(request.url, "api_key", activeApiKey);
+        }
+        const method = request.method || "GET";
+        setRestTestStatus(`Swagger sending ${method} ${request.url || ""}`, false);
+        return request;
+    }
+
+    function setBaseUrlStatus(message, isError) {
+        const status = document.getElementById("base-url-status");
+        if (!status) {
+            return;
+        }
+        status.textContent = message;
+        status.classList.toggle("error", Boolean(isError));
+    }
+
+    function handleSwaggerResponse(response) {
+        try {
+            const status = response && response.status ? response.status : "response";
+            const url = response && response.url ? String(response.url) : "";
+            setRestTestStatus(`Swagger ${status} ${url}`, false);
+        } catch (error) {
+            // Keep the Swagger response visible even if preview rendering fails.
+        }
+        return response;
+    }
+
+    function renderSwagger(baseUrl) {
+        const swaggerElement = document.getElementById("swagger-ui");
+        if (!swaggerElement) {
+            return;
+        }
+        if (typeof SwaggerUIBundle !== "function") {
+            setBaseUrlStatus("Swagger UI did not load; direct browser tests are still available above.", true);
+            return;
+        }
+
+        spec.servers = [
+            {
+                url: baseUrl,
+                description: "Active bridge"
+            }
+        ];
+
+        swaggerElement.innerHTML = "";
+        swaggerUi = SwaggerUIBundle({
+            spec: spec,
+            dom_id: '#swagger-ui',
+            deepLinking: true,
+            requestInterceptor: handleSwaggerRequest,
+            responseInterceptor: handleSwaggerResponse,
+            presets: [
+                SwaggerUIBundle.presets.apis
+            ],
+            layout: "BaseLayout"
+        });
+    }
+
+    function applyRestBaseUrl(value, persist) {
+        const normalized = normalizeRestBaseUrl(value);
+        if (!normalized) {
+            setBaseUrlStatus("Enter a valid http:// or https:// URL.", true);
+            return false;
+        }
+
+        const input = document.getElementById("base-url-input");
+        if (input) {
+            input.value = normalized;
+        }
+        if (persist) {
+            saveRestBaseUrl(normalized);
+        }
+
+        renderSwagger(normalized);
+        setBaseUrlStatus(`Using ${normalized}`, false);
+        return true;
+    }
+
+    function initializeBaseUrlControl() {
+        const form = document.getElementById("base-url-form");
+        const input = document.getElementById("base-url-input");
+        if (!form || !input) {
+            renderSwagger(DEFAULT_REST_BASE_URL);
+            return;
+        }
+
+        applyRestBaseUrl(readSavedRestBaseUrl(), false);
+
+        form.addEventListener("submit", function (event) {
+            event.preventDefault();
+            applyRestBaseUrl(input.value, true);
+        });
+    }
+
+    function initializeApiKeyControl() {
+        const form = document.getElementById("api-key-form");
+        const input = document.getElementById("api-key-input");
+        if (!form || !input) {
+            activeApiKey = DEFAULT_API_KEY;
+            return;
+        }
+
+        applyApiKey(readSavedApiKey(), false);
+
+        form.addEventListener("submit", function (event) {
+            event.preventDefault();
+            applyApiKey(input.value, true);
+        });
+    }
+
+    function initializeRestTestControls() {
+        const statusButton = document.getElementById("rest-status-test-button");
+        const commandButton = document.getElementById("rest-command-test-button");
+        if (statusButton) {
+            statusButton.addEventListener("click", sendDirectRestStatusTest);
+        }
+        if (commandButton) {
+            commandButton.addEventListener("click", sendDirectHeadCommandTest);
+        }
+        const infraredButton = document.getElementById("infrared-snapshot-button");
+        if (infraredButton) {
+            infraredButton.addEventListener("click", takeInfraredSnapshot);
+            renderInfraredHeatMap({ parts: [] });
+        }
+    }
+
+    window.onload = function () {
+        applyRestEnvelopeConventions(spec);
+        initializeApiKeyControl();
+        initializeRestTestControls();
+        initializeBaseUrlControl();
+    };
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
