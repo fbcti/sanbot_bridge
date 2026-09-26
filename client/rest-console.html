@@ -816,7 +816,7 @@
                 </div>
                 <div class="summary-item">
                     <strong>Camera</strong>
-                    <span>Use REST for handler-backed routes such as `/v1/info/...`, `/v1/query/leds/whitelight`, `/v1/command/...`, `/v1/media/camera/image`, `/v1/media/camera/face`, and `/v1/media/audio/get`.</span>
+                    <span>Use REST for handler-backed routes such as `/v1/info/...`, `/v1/query/leds/whitelight`, `/v1/command/...`, `/v1/media/camera/image`, `/v1/media/camera/face`, `/v1/media/audio/get`, and `/v1/media/video/get`.</span>
                 </div>
                 <div class="summary-item">
                     <strong>Correlation</strong>
@@ -1051,13 +1051,26 @@
         }, ["volume"]), true);
         addPost("command", "audio", "play", "Play audio", ref("MediaPlayRequest"), true);
         addPost("command", "audio", "record", "Record audio", flexibleObject({
-            length: { type: "integer", minimum: 0, maximum: 300, default: 0, description: "Recording length in seconds; zero uses the audio-unit default." },
+            duration: { type: "integer", minimum: 0, maximum: 300, default: 0, description: "Maximum duration in seconds; zero uses the audio-unit default." },
             save: {
                 oneOf: [{ type: "boolean" }, { type: "string" }], default: false,
                 description: "true saves with a timestamp name; a string saves under that filename; false keeps only cached WAV data."
             }
         }));
         addPost("command", "audio", "stop", "Stop audio playback or recording");
+        addPost("command", "audio", "list", "List saved audio recordings");
+        addPost("command", "audio", "remove", "Remove recorded audio", object({
+            filename: { type: "string", minLength: 1, description: "Audio filename, or all to remove every saved audio recording." }
+        }, ["filename"]), true);
+        addPost("command", "video", "record", "Record video", object({
+            filename: { type: "string", description: "Optional recording filename; defaults to a timestamp-based name." },
+            duration: { type: "integer", minimum: 0, default: 300, description: "Maximum duration in seconds; zero uses the five-minute default." }
+        }));
+        addPost("command", "video", "stop", "Stop video recording");
+        addPost("command", "video", "list", "List saved video recordings");
+        addPost("command", "video", "remove", "Remove recorded video", object({
+            filename: { type: "string", minLength: 1, description: "Video filename, or all to remove every saved video recording." }
+        }, ["filename"]), true);
         addPost("command", "screen", "image", "Show an image on the robot screen", ref("MediaScreenRequest"));
         addPost("command", "speech", "config", "Configure speech", flexibleObject({ reset: boolean, reload: boolean, save: boolean }));
         addPost("command", "speech", "say", "Speak text", flexibleObject({ text: { type: "string", minLength: 1 } }, ["text"]), true);
@@ -1086,6 +1099,9 @@
         ]);
         addMedia("audio", "get", "Download recorded audio", "audio/wav", [
             queryParameter("filename", text, "Optional filename relative to SanbotBridge/audio; omit it for cached WAV data")
+        ]);
+        addMedia("video", "get", "Download recorded video", "application/octet-stream", [
+            queryParameter("filename", text, "Filename relative to SanbotBridge/video", true)
         ]);
         return paths;
     }

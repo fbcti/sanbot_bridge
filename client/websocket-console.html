@@ -700,6 +700,12 @@
                                 <option value="audio-play-url">command:audio:play</option>
                                 <option value="audio-record">command:audio:record</option>
                                 <option value="audio-stop">command:audio:stop</option>
+                                <option value="audio-list">command:audio:list</option>
+                                <option value="audio-remove">command:audio:remove</option>
+                                <option value="video-record">command:video:record</option>
+                                <option value="video-stop">command:video:stop</option>
+                                <option value="video-list">command:video:list</option>
+                                <option value="video-remove">command:video:remove</option>
                                 <option value="screen-image">command:screen:image</option>
                                 <option value="speech-config">command:speech:config</option>
                                 <option value="speech-say">command:speech:say</option>
@@ -965,8 +971,14 @@
         'command-camera-face': { id: 'req-1', type: 'command', module: 'camera', action: 'face', data: { index: 0 } },
         'audio-volume': { id: 'req-1', type: 'command', module: 'audio', action: 'volume', data: { stream: 'music', volume: 50 } },
         'audio-play-url': { id: 'req-1', type: 'command', module: 'audio', action: 'play', data: { url: 'http://10.30.12.203:8099/test.wav' } },
-        'audio-record': { id: 'req-1', type: 'command', module: 'audio', action: 'record', data: { length: 5, save: true } },
+        'audio-record': { id: 'req-1', type: 'command', module: 'audio', action: 'record', data: { duration: 60, save: true } },
         'audio-stop': { id: 'req-1', type: 'command', module: 'audio', action: 'stop', data: {} },
+        'audio-list': { id: 'req-1', type: 'command', module: 'audio', action: 'list', data: {} },
+        'audio-remove': { id: 'req-1', type: 'command', module: 'audio', action: 'remove', data: { filename: 'recording.wav' } },
+        'video-record': { id: 'req-1', type: 'command', module: 'video', action: 'record', data: { filename: 'recording.rec', duration: 300 } },
+        'video-stop': { id: 'req-1', type: 'command', module: 'video', action: 'stop', data: {} },
+        'video-list': { id: 'req-1', type: 'command', module: 'video', action: 'list', data: {} },
+        'video-remove': { id: 'req-1', type: 'command', module: 'video', action: 'remove', data: { filename: 'recording.rec' } },
         'screen-image': { id: 'req-1', type: 'command', module: 'screen', action: 'image', data: { filename: 'welcome.png' } },
         'speech-config': { id: 'req-1', type: 'command', module: 'speech', action: 'config', data: { language: 'nl-NL', speed: 100, pitch: 100, save: false } },
         'speech-say': { id: 'req-1', type: 'command', module: 'speech', action: 'say', data: { text: 'Hello from the WebSocket explorer' } },

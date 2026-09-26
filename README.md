@@ -932,14 +932,50 @@ Instructs the robot to start playing audio from a URL or local audio file. The p
 Instructs the robot to start recording audio. The payload for this request is
 ```json
 {
-  "length": (optional) number of seconds to record,
+  "duration": (optional) maximum recording duration in seconds,
   "save": (optional) one of [true, false, "filename"], default false
 }
 ```
-If `length` is 0 or omitted, the audio unit's default is used; the maximum duration is 300 seconds. If `save` is `true`, the audio is saved under a timestamp-based name. If `save` is a string, that value is used as the filename. The `.wav` extension is added when the supplied name has no extension. Files are stored below `SanbotBridge/audio` on external storage.
+If `duration` is 0 or not specified the default value defined in the audio unit is applied. If `save` is `true`, the audio data will be saved to a file with a name constructed from the current date and time. If `save` has a string value that value is used as the filename. Specifying the file extension is optional, if not present a `wav` extension is added.
 
 ### command:audio:stop
 Instructs the robot to stop audio playback or audio recording. The payload for this request is empty.
+
+### command:audio:list
+Instructs the robot to a list of available audio recordings.
+
+### media:audio:remove
+Instructs the robot to remove one or more audio recordings. The payload for this request is
+```json
+{
+  "filename": (mandatory) "filename", or "all" to remove all audio recordings
+}
+```
+Specifying the file extension is optional, if not present a `wav` extension is added.
+
+### command:video:record
+Instructs the robot to start recording video. The payload for this request is
+```json
+{
+  "duration": (optional) maximum recording duration in seconds
+}
+```
+If `duration` is 0 or not specified the default value defined in the video unit is applied. If `filename` is `null` or an empty string, a file name is generated from the current date and time. Specifying the file extension is optional, if not present a `rec` extension is added.
+
+### command:video:stop
+Instructs the robot to stop audio video recording. The payload for this request is empty.
+
+### command:video:list
+Instructs the robot to a list of available video recordings.
+
+### media:video:remove
+Instructs the robot to remove one or more video recordings. The payload for this request is
+```json
+{
+  "filename": (mandatory) "filename", or "all" to remove all video recordings
+}
+```
+Specifying the file extension is optional, if not present a `wav` extension is added.
 
 ### command:screen:image
 Instructs the robot to show an image on the robot screen. The payload for this request is
@@ -1050,7 +1086,15 @@ endloop
 
 ## Media requests
 
-REST media requests return binary image or audio data. Successful equivalent WebSocket requests return a JSON metadata frame followed by one binary frame containing the media payload.
+REST media requests return binary image, audio, or video-recording data. Successful equivalent WebSocket requests return a JSON metadata frame followed by one binary frame containing the media payload.
+
+Sanbot `.rec` recordings are proprietary recording files, not directly playable video files. Use the included conversion utility to unpack the recording and create an MP4 file; Python 3 and FFmpeg on the system path are required:
+
+```sh
+python tools/unpack_sanbot_rec.py recording.rec recording.mp4 --frame-rate 20
+```
+
+The frame rate defaults to 20 frames per second when `--frame-rate` is omitted. Specify the actual recording rate when it differs.
 
 ### media:camera:snapshot
 Instructs the robot to capture a snapshot image. The payload for this request is

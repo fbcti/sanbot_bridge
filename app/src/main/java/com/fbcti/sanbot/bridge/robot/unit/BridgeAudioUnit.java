@@ -12,7 +12,6 @@ import android.support.annotation.Nullable;
 
 import com.fbcti.sanbot.bridge.BuildConfig;
 import com.fbcti.sanbot.bridge.app.BridgeEventHost;
-import com.fbcti.sanbot.bridge.config.BridgeConfig;
 import com.fbcti.sanbot.bridge.robot.BridgeResult;
 import com.fbcti.sanbot.bridge.robot.DataResult;
 import com.fbcti.sanbot.bridge.robot.MediaResult;
@@ -24,11 +23,12 @@ import com.fbcti.sanbot.bridge.util.FileUtils;
 import com.fbcti.sanbot.bridge.util.MapUtils;
 import com.fbcti.sanbot.bridge.util.StringUtils;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -70,14 +70,20 @@ public final class BridgeAudioUnit extends BridgeUnit
     /** List of Android stream types supported by this class. */
     private static final int[] AUDIO_STREAM_TYPES = { AudioManager.STREAM_MUSIC, AUDIO_STREAM_TTS, AudioManager.STREAM_SYSTEM };
 
-    /** External storage directory containing audio files. */
+    /** External storage directory in which to save audio files. */
     private static final String AUDIO_DIRECTORY = FileUtils.BRIDGE_DATA_DIRECTORY + "/audio";
 
+    /** Audio file extension. */
+    private static final String AUDIO_FILE_EXTENSION = "wav";
+
     /** Maximum number of seconds of audio to record. */
-    public static final int AUDIO_RECORDING_MAX_DURATION = 300;
+    public static final int AUDIO_RECORDING_DEFAULT_DURATION = 300;
 
     /** Size of WAV header (which consequently is minimum size of audio data). */
     private static final int AUDIO_WAV_PCM_HEADER_SIZE = 44;
+
+    /** Number of bytes generated per second for 8 kHz mono 16-bit PCM audio. */
+    private static final long AUDIO_WAV_BYTES_PER_SECOND = 8000L*2L;
 
     /** Default Android output stream for robot speaker playback. */
     private static final int DEFAULT_AUDIO_STREAM = AudioManager.STREAM_MUSIC;
@@ -132,7 +138,7 @@ public final class BridgeAudioUnit extends BridgeUnit
      * Sets the volume for the specified audio stream.
      *
      * @param   streamType      audio stream for which to set volume
-     * @param   volume          volume as percentage of maximum valume
+     * @param   volume          volume as percentage of maximum volume
      *
      * @return  DataResult instance containing operation result
      *
@@ -144,7 +150,7 @@ public final class BridgeAudioUnit extends BridgeUnit
     {
         if (androidAudioManager == null) return DataResult.notavailable("audio_manager");
 
-        // Convert percenage volume to actual volume.
+        // Convert percentage volume to actual volume.
         int maxVolume = androidAudioManager.getStreamMaxVolume(streamType);
         int targetVolume = (maxVolume <= 0) ? 0 : Math.round((volume/100.0f) * maxVolume);
         if ((volume > 0) && (targetVolume == 0)) targetVolume = 1;
@@ -152,7 +158,7 @@ public final class BridgeAudioUnit extends BridgeUnit
         // Set volume
         androidAudioManager.setStreamVolume(streamType, targetVolume, 0);
 
-        // Get volume to check if volume was succesfully set.
+        // Get volume to check if volume was successfully set.
         Integer newVolume = getVolume(streamType);
         if ((newVolume != null) && (newVolume == volume)) return DataResult.success();
         if (newVolume == null) return DataResult.failure("failed to get current volume");
@@ -189,22 +195,22 @@ public final class BridgeAudioUnit extends BridgeUnit
     }
 
     /**
-     * Starts playing audio using the Andorid media player
+     * Starts playing audio using the Android media player
      *
      * The Android media player is released if currently in use, and a new media player is created.
      * If the audio source is an URL, it is directly assigned to the media player. If the source is
      * a local audio file, the absolute path of the file is retrieved before assigning the file to
      * the media player. Preparing the media player is done in a separate thread to make sure the
-     * main thred is not blocked. When preparing is complete an event is thrown, the handler for
+     * main thread is not blocked. When preparing is complete an event is thrown, the handler for
      * this event requests the media player to start playing.
      *
      * @param   source          audio source
-     * @param   sourceType      auudo source type (local file or URL)
+     * @param   sourceType      audio source type (local file or URL)
      * @param   streamType      audio stream on which to play audio, or @c null to use default
      *
      * @return  DataResult instance containing operation result
      */
-    public synchronized DataResult startAudioPlayback(String source, int sourceType, Integer streamType)
+    public synchronized DataResult startPlayback(String source, int sourceType, Integer streamType)
     {
         if (shuttingDown) return DataResult.notavailable("audio unit is shutting down");
 
@@ -269,7 +275,7 @@ public final class BridgeAudioUnit extends BridgeUnit
                 }
             });
 
-            audioPlayback.set(playbackId, source, playbackType, playbackStream, AudioPlayback.Status.PRPEPARING);
+            audioPlayback.set(playbackId, source, playbackType, playbackStream, AudioPlayback.Status.PREPARING);
             mediaPlayer.prepareAsync();
             return DataResult.success(audioPlayback.buildStatusData());
         }
@@ -284,24 +290,26 @@ public final class BridgeAudioUnit extends BridgeUnit
     /**
      * Starts recording audio using the Sanbot audio recorder.
      *
-     * Audio recording is a asynchronous operation, so this method starts audio recording in a
-     * worker thread and exits immediately. Recording ends if either the maximum audio length has
-     * been reached or a request to stop recording is received.
+     * If the recording is to be saved, at least 150% of the estimated WAV file size must be
+     * available. If this is not the case an error response is returned. Since audio recording is a
+     * asynchronous operation, this method starts audio recording in a worker thread and exits
+     * immediately. Recording ends if either the maximum audio length has been reached or a request
+     * to stop recording is received.
      *
-     * @param   length          number of seconds of audio to record
      * @param   filename        name of audio file, or @c null if file should not be saved
+     * @param   duration        maximum recording duration in seconds, or 0 for default duration
      * @param   params          optional audio recording parameters
      *
      * @return  DataResult instance specifying operation result
      */
-    public synchronized DataResult startAudioRecording(int length, String filename, Map<String, Object> params)
+    public synchronized DataResult startRecording(String filename, int duration, Map<String, Object> params)
     {
         if (shuttingDown) return DataResult.notavailable("audio unit is shutting down");
 
         // If audio is being recorded playing audio is not allowed.
         if (audioPlayback.isAvailable() == false) return DataResult.notavailable("audio device is busy playing audio");
 
-        // Do not rely solely on the audio manager status: the worker may not have started yet.
+        // The worker may not have started yet.
         if (recordingThread != null) return DataResult.notavailable("audio device is busy recording audio");
 
         // Return if in emulator mode.
@@ -310,6 +318,20 @@ public final class BridgeAudioUnit extends BridgeUnit
         // Return error response if camera manager is not available.
         if ((bridgeAudioManager == null) || (bridgeAudioManager.isRecorderAvailable() == false))
             return setError(BridgeResult.Code.NOT_READY, "audio_record_failed", "Sanbot audio recording not available");
+
+        // Set default duration if duration is 0.
+        final int seconds = (duration > 0) ? duration : AUDIO_RECORDING_DEFAULT_DURATION;
+
+        // A memory-only recording does not consume filesystem space. If the recording is to be
+        // saved, ensure external storage has at least 150% of the estimated WAV file size
+        // available.
+        if (filename != null)
+        {
+            long estimatedBytes = AUDIO_WAV_PCM_HEADER_SIZE + AUDIO_WAV_BYTES_PER_SECOND*seconds;
+            Boolean spaceAvailable = FileUtils.checkAvailableSpace( Environment.getExternalStorageDirectory(), estimatedBytes, 150);
+            if (spaceAvailable == null) return DataResult.failure("storage_space_compute_error");
+            if (spaceAvailable == false) return DataResult.failure("storage_space_insufficient");
+        }
 
         // Open the dedicated audio recording stream if not already open. Return error response on failure.
         if (bridgeAudioManager.openAudioStream(params) < 0) return setError(bridgeAudioManager.getError());
@@ -320,7 +342,7 @@ public final class BridgeAudioUnit extends BridgeUnit
         {
             @Override
             public void run() {
-                startWorkerThread(Thread.currentThread(), length, filename);
+                startWorkerThread(Thread.currentThread(), seconds, filename);
             }
         }, "AudioRecording");
         recordingThread = worker;
@@ -349,6 +371,51 @@ public final class BridgeAudioUnit extends BridgeUnit
     }
 
     /**
+     * Rettuns the list of available audio recordingd.
+     *
+     * The list of files with a name containing the audio file extension in the script directory is
+     * retrieved.
+     *
+     * @return  DataResult instance containing list of audio recordings
+     */
+    @NonNull
+    public synchronized DataResult getRecordingList()
+    {
+        List<String> recordings = FileUtils.listFileNames(AUDIO_DIRECTORY, AUDIO_FILE_EXTENSION);
+        return DataResult.success(MapUtils.createMap("recordings", recordings));
+    }
+
+    /**
+     * Remove a single audio recording or all audio recordings.
+     *
+     * @param   filename        name of audio file to remove, or @c null to remove all audio files
+     *
+     * @return  DataResult instance specifying operation result
+     */
+    @NonNull
+    public synchronized DataResult removeRecording(String filename)
+    {
+        File audioDirectory = new File(Environment.getExternalStorageDirectory(), AUDIO_DIRECTORY);
+        try
+        {
+            if (filename == null)
+            {
+                Set<String> failedFiles = FileUtils.deleteRegularFiles(audioDirectory);
+                if (failedFiles.isEmpty() == false)
+                    return DataResult.failure("failed to remove one or more audio files", failedFiles);
+            }
+            else FileUtils.deleteChildFile(audioDirectory, filename, AUDIO_FILE_EXTENSION);
+
+            return DataResult.success();
+        }
+        catch (IOException e)
+        {
+            BridgeLog.warning(TAG, "Failed to remove audio file " + filename, e);
+            return DataResult.failure("failed to remove audio file", e.getMessage());
+        }
+    }
+
+    /**
      * Retrieves audio data.
      *
      * If a file name is specified the audio file with the specified name is returned if available.
@@ -358,10 +425,10 @@ public final class BridgeAudioUnit extends BridgeUnit
      *
      * @return  MediaResult instance containing audio data or error details
      */
-    public MediaResult getRecordedAudio(String filename)
+    public MediaResult getRecording(String filename)
     {
-        if (filename == null) return getAudioFromCache();
-        else return getAudioFromFile(filename);
+        if (filename == null) return getRecordingFromCache();
+        else return getRecordingFromFile(filename);
     }
 
     /** @} */
@@ -447,7 +514,7 @@ public final class BridgeAudioUnit extends BridgeUnit
     /**
      * Builds a data map containing audio volume data.
      *
-     * @return  Java Map instance containing audio volum data
+     * @return  Java Map instance containing audio volume data
      */
     @NonNull
     public synchronized Map<String, Object> buildAudioVolumeData()
@@ -594,7 +661,7 @@ public final class BridgeAudioUnit extends BridgeUnit
      * Starts the audio recording session.
      *
      * The @c recordAudio() method implemented by  SanbotCameraManager is called to start recording.
-     * A callback methid is set that checks if a stop request for the thread is received. The
+     * A callback method is set that checks if a stop request for the thread is received. The
      * recorded audio is copied to the @c audioData member variable after recording is complete. If
      * a file name is specified, the recorded audio is saved to file.
      *
@@ -686,7 +753,7 @@ public final class BridgeAudioUnit extends BridgeUnit
      *
      * @return  MediaResult instance containing audio data
      */
-    private MediaResult getAudioFromCache()
+    private MediaResult getRecordingFromCache()
     {
         // Stop an active recording before returning its in-memory WAV data.
         stopRecording();
@@ -702,15 +769,14 @@ public final class BridgeAudioUnit extends BridgeUnit
     /**
      * Retrieves audio data retrieved from specified file.
      *
-     * The file is retrieved from the directory speciifed by the @c AUDIO_DIRECTORY directory
-     * constant.
+     * The file is retrieved from the directory specified by the @c AUDIO_DIRECTORY constant.
      *
      * @param   filename        name of audio file to retrieve
      *
      * @return  MediaResult instance containing audio data or error details
      */
     @NonNull
-    private MediaResult getAudioFromFile(String filename)
+    private MediaResult getRecordingFromFile(String filename)
     {
         // Return error response if filename is not valid.
         if (StringUtils.isBlank(filename))
@@ -719,7 +785,7 @@ public final class BridgeAudioUnit extends BridgeUnit
         try
         {
             // Add extension if not already present.
-            if (filename.lastIndexOf('.') <= filename.lastIndexOf(File.separatorChar)) filename += ".wav";
+            if (filename.lastIndexOf('.') <= filename.lastIndexOf(File.separatorChar)) filename += "." + AUDIO_FILE_EXTENSION;
 
             File audioDirectory = new File(Environment.getExternalStorageDirectory(), AUDIO_DIRECTORY);
             File audioFile = FileUtils.resolveChildFile(audioDirectory, filename);
@@ -741,7 +807,7 @@ public final class BridgeAudioUnit extends BridgeUnit
     /**
      * Save the audio data to a file.
      *
-     * The file is saved in the directory speciifed by the @c AUDIO_DIRECTORY directory constant. If
+     * The file is saved in the directory specified by the @c AUDIO_DIRECTORY directory constant. If
      * that directory does not yet exist it is created.
      *
      * @param   wavData         byte array containing WAV data
@@ -751,13 +817,13 @@ public final class BridgeAudioUnit extends BridgeUnit
      */
     private String saveAudio(byte[] wavData, String filename)
     {
-        // Return null if WAV data is not avaiable or file name is not specified.
+        // Return null if WAV data is not available or file name is not specified.
         if ((wavData == null) || (StringUtils.isBlank(filename))) return null;
 
         try
         {
             // Add extension if not already present.
-            if (filename.lastIndexOf('.') <= filename.lastIndexOf(File.separatorChar)) filename += ".wav";
+            if (filename.lastIndexOf('.') <= filename.lastIndexOf(File.separatorChar)) filename += "." + AUDIO_FILE_EXTENSION;
 
             // Create the bridge audio directory if necessary.
             File audioDirectory = new File(Environment.getExternalStorageDirectory(), AUDIO_DIRECTORY);
@@ -840,7 +906,7 @@ public final class BridgeAudioUnit extends BridgeUnit
         }
 
         /**
-         * Resets member variables to iheir initial values.
+         * Resets member variables to their initial values.
          */
         void reset()
         {
@@ -864,11 +930,11 @@ public final class BridgeAudioUnit extends BridgeUnit
         /**
          * Returns @c true if media player is available for playing audio.
          *
-         * @return  @c true if media player is available for playing audio, @c false if unavialble
+         * @return  @c true if media player is available for playing audio, @c false if unavailable
          */
         boolean isAvailable()
         {
-            return (status != Status.PRPEPARING) && (status != Status.PLAYING);
+            return (status != Status.PREPARING) && (status != Status.PLAYING);
         }
 
         /**
@@ -894,7 +960,7 @@ public final class BridgeAudioUnit extends BridgeUnit
         enum Status
         {
             IDLE,
-            PRPEPARING,
+            PREPARING,
             PLAYING,
             COMPLETED,
             ERROR

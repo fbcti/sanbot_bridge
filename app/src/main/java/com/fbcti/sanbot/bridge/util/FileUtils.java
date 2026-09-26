@@ -5,8 +5,10 @@
 package com.fbcti.sanbot.bridge.util;
 
 import android.os.Environment;
+import android.os.StatFs;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.system.Os;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -16,7 +18,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Helper class that implements common file-system operations.
@@ -81,8 +85,7 @@ public final class FileUtils
      *
      * @param   filename        file name from which to retrieve extension
      *
-     * @return  file extension without leading period, or an empty string if the file name does not
-     *          contain an extension
+     * @return  file extension without leading period, or an empty string
      */
     @NonNull
     public static String getFileExtension(@NonNull String filename)
@@ -207,6 +210,130 @@ public final class FileUtils
             while ((byteCount = inputStream.read(buffer)) != -1) outputStream.write(buffer, 0, byteCount);
         }
         return outputStream.toByteArray();
+    }
+
+    /**
+     * Deletes a regular child file from the specified directory.
+     *
+     * @param   directory           directory containing the file
+     * @param   filename            relative name of the file to delete
+     * @param   defaultExtension    extension to try when the exact name does not exist, or @c null
+     *
+     * The exact stored name is preferred. If it does not identify a regular file and has no
+     * extension, @p defaultExtension is appended and that path is tried instead. Canonical path
+     * resolution prevents the requested file from escaping @p directory.
+     *
+     * @throws  IOException         thrown if the file is invalid, missing, or cannot be deleted
+     */
+    public static void deleteChildFile(@NonNull File directory, @NonNull String filename, @Nullable String defaultExtension) throws IOException
+    {
+        try
+        {
+            filename = filename.trim();
+            if (filename.isEmpty()) throw new IOException("File name is required");
+
+            File file = resolveChildFile(directory, filename);
+            if ((file.isFile() == false) && (defaultExtension != null) &&
+                (defaultExtension.trim().isEmpty() == false) &&
+                (filename.lastIndexOf('.') <= filename.lastIndexOf(File.separatorChar)))
+            {
+                String extension = defaultExtension.trim();
+                if (extension.startsWith(".")) extension = extension.substring(1);
+                file = resolveChildFile(directory, filename + "." + extension);
+            }
+
+            if (file.isFile() == false) throw new IOException("File not found: " + file.getAbsolutePath());
+            if (file.delete() == false) throw new IOException("Could not delete file: " + file.getAbsolutePath());
+        }
+        catch (SecurityException e)
+        {
+            throw new IOException("Could not delete file", e);
+        }
+    }
+
+    /**
+     * Deletes all regular files directly inside the specified directory.
+     *
+     * @param   directory       directory from which to delete regular files
+     *
+     * A missing directory is treated as empty. Subdirectories and their contents are preserved.
+     * Every regular file is attempted, and the returned set contains the absolute paths of files
+     * that could not be deleted.
+     *
+     * @return  absolute paths of regular files that could not be deleted
+     *
+     * @throws  IOException     thrown if the directory path is invalid or cannot be listed
+     */
+    @NonNull
+    public static Set<String> deleteRegularFiles(@NonNull File directory) throws IOException
+    {
+        try
+        {
+            if (directory.exists() == false) return new LinkedHashSet<>();
+            if (directory.isDirectory() == false)
+                throw new IOException("Directory path is not a directory: " + directory.getAbsolutePath());
+
+            File[] files = directory.listFiles();
+            if (files == null) throw new IOException("Could not list directory: " + directory.getAbsolutePath());
+
+            Set<String> failedFiles = new LinkedHashSet<>();
+            for (File file : files)
+            {
+                if ((file.isFile()) && (file.delete() == false)) failedFiles.add(file.getAbsolutePath());
+            }
+            return failedFiles;
+        }
+        catch (SecurityException e)
+        {
+            throw new IOException("Could not delete files from " + directory.getAbsolutePath(), e);
+        }
+    }
+
+    /**
+     * Checks whether a filesystem has enough available space for an estimated file size.
+     *
+     * @param   filesystemPath      path located on the filesystem to inspect
+     * @param   estimatedBytes      estimated file size in bytes
+     * @param   requiredPercent     required percentage of the estimate, for example 150
+     *
+     * @return  boolean specifying if space of sufficient, @c null if check failed
+     */
+    @Nullable
+    public static Boolean checkAvailableSpace(@NonNull File filesystemPath, long estimatedBytes, int requiredPercent)
+    {
+        if ((estimatedBytes < 0L) || (requiredPercent <= 0)) return null;
+
+        long requiredBytes = estimatedBytes + estimatedBytes/2L;
+        StatFs storageStats = new StatFs(filesystemPath.getAbsolutePath());
+        return (storageStats.getAvailableBytes() > requiredBytes);
+    }
+
+    /**
+     * Moves and optionally renames a file.
+     *
+     * @param   sourceFile      Java @c File instance representing file to move
+     * @param   directory       Java @c File instance representing target directory
+     * @param   fileName        target file name
+     *
+     * If @p fileName is @c null or blank the file retains its original name.
+     *
+     * @return  Java @c File instance representing moved file, or @c null on failure
+     */
+    @Nullable
+    public static File moveFile(@NonNull File sourceFile, File directory, String fileName)
+    {
+        try
+        {
+            ensureDirectory(directory);
+            if ((fileName == null) || (fileName.trim().isEmpty())) fileName = sourceFile.getName();
+            File targetFile = FileUtils.resolveChildFile(directory, fileName);
+            Os.rename(sourceFile.getAbsolutePath(), targetFile.getAbsolutePath());
+            return targetFile;
+        }
+        catch (Exception e)
+        {
+            return null;
+        }
     }
 
     /**

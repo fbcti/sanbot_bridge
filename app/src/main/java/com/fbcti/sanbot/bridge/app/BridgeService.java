@@ -35,6 +35,7 @@ import com.fbcti.sanbot.bridge.robot.unit.BridgeAudioUnit;
 import com.fbcti.sanbot.bridge.robot.unit.BridgeCameraUnit;
 import com.fbcti.sanbot.bridge.robot.unit.BridgeTtsUnit;
 import com.fbcti.sanbot.bridge.robot.unit.BridgeUnit;
+import com.fbcti.sanbot.bridge.robot.unit.SanbotVideoUnit;
 import com.fbcti.sanbot.bridge.robot.unit.OrbbecCameraUnit;
 import com.fbcti.sanbot.bridge.robot.unit.SanbotAsrUnit;
 import com.fbcti.sanbot.bridge.robot.unit.SanbotCameraUnit;
@@ -96,8 +97,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * the bridge application, creates and initialized the HTTP server, keeps the main activity window
  * visible, and owns the traffic log.
  *
- * @version     1.0.001
- * @date        21 Sep 2026
+ * @version     1.0.002
+ * @date        26 Sep 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
  */
@@ -218,6 +219,9 @@ public class BridgeService extends BindBaseService
 
     /** Instance of class managing audio operations. */
     private BridgeAudioUnit bridgeAudioUnit;
+
+    /** Instance of class managing video recording operations. */
+    private SanbotVideoUnit sanbotVideoUnit;
 
     /** Instance of class managing text-to-speech operations. */
     private BridgeTtsUnit bridgeTtsUnit;
@@ -381,6 +385,8 @@ public class BridgeService extends BindBaseService
         sanbotCameraUnit = null;
         shutdownBridgeUnit(bridgeAudioUnit);
         bridgeAudioUnit = null;
+        shutdownBridgeUnit(sanbotVideoUnit);
+        sanbotVideoUnit = null;
         shutdownBridgeUnit(bridgeTtsUnit);
         bridgeTtsUnit = null;
         shutdownBridgeUnit(sanbotAsrUnit);
@@ -760,7 +766,7 @@ public class BridgeService extends BindBaseService
     /**
      * Rettuns the list of available scripts.
      *
-     * The list of files with a name containng the script file extension in the script directory is
+     * The list of files with a name containing the script file extension in the script directory is
      * retrieved. The script name is just the file name without the extension.
      *
      * @return  DataResult instance containing list of scripts
@@ -1058,6 +1064,7 @@ public class BridgeService extends BindBaseService
      *
      * @return  Java @c Map instance containing status data
      */
+    @NonNull
     private Map<String, Object> buildBatteryStatusData()
     {
         Map<String, Object> data = MapUtils.createMap();
@@ -1335,6 +1342,19 @@ public class BridgeService extends BindBaseService
     {
         if (bridgeAudioUnit == null) bridgeAudioUnit = new BridgeAudioUnit(bridgeEventHost);
         return bridgeAudioUnit;
+    }
+
+    /**
+     * Returns existing or new instance of SanbotVideoUnit class.
+     *
+     * @return  instance of SanbotVideoUnit class
+     */
+    @NonNull
+    synchronized SanbotVideoUnit getSanbotVideoUnit()
+    {
+        if (sanbotVideoUnit == null)
+            sanbotVideoUnit = new SanbotVideoUnit(getApplicationContext(), bridgeEventHost);
+        return sanbotVideoUnit;
     }
 
     /**
@@ -2107,9 +2127,7 @@ public class BridgeService extends BindBaseService
             BridgeLog.error(TAG, "failed to set system parameter", e);
             return false;
         }
-
     }
-
 
     /***********************************************************************************************
      * CLASSES / ENUMERATORS / INTERFACES

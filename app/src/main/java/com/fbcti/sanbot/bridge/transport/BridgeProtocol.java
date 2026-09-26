@@ -7,8 +7,8 @@ package com.fbcti.sanbot.bridge.transport;
 /**
  * Defines shared bridge service transport protocol constants.
  *
- * @version     1.0.001
- * @date        24 Sep 2026
+ * @version     1.0.002
+ * @date        26 Sep 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
  */
@@ -80,9 +80,10 @@ public final class BridgeProtocol
     public static final String MODULE_FACE = "face";
     public static final String MODULE_LED = "led";
     public static final String MODULE_CAMERA = "camera";
-    public static final String MODULE_AUDIO = "audio";
     public static final String MODULE_SPEECH = "speech";
     public static final String MODULE_SENSOR = "sensor";
+    public static final String MODULE_AUDIO = "audio";
+    public static final String MODULE_VIDEO = "video";
     public static final String MODULE_SCREEN = "screen";
     public static final String MODULE_SCRIPT = "script";
 
@@ -100,6 +101,7 @@ public final class BridgeProtocol
     public static final String ACTION_CONFIG = "config";
     public static final String ACTION_FEATURES = "features";
     public static final String ACTION_UPLOAD = "upload";
+    public static final String ACTION_REMOVE = "remove";
     public static final String ACTION_MOVE = "move";
     public static final String ACTION_LOCATION = "location";
     public static final String ACTION_WALK = "walk";

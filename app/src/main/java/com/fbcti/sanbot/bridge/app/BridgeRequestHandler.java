@@ -9,7 +9,6 @@ import android.support.annotation.NonNull;
 import com.fbcti.sanbot.bridge.robot.DataResult;
 import com.fbcti.sanbot.bridge.robot.MediaResult;
 import com.fbcti.sanbot.bridge.robot.mapping.SanbotMappings;
-import com.fbcti.sanbot.bridge.robot.unit.BridgeAudioUnit;
 import com.fbcti.sanbot.bridge.robot.unit.BridgeCameraUnit;
 import com.fbcti.sanbot.bridge.transport.BridgeProtocol;
 import com.fbcti.sanbot.bridge.transport.BridgeRequest;
@@ -62,8 +61,8 @@ import java.util.Set;
  * payload are assumed to be normalized, i.e. they are in lower case and do not contain leading or
  * trailing whitespace.
  *
- * @version     1.0.001
- * @date        24 sep 2026
+ * @version     1.0.002
+ * @date        26 sep 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
  */
@@ -332,6 +331,23 @@ public final class BridgeRequestHandler
                     return commandAudioRecord(request);
                 if (BridgeProtocol.ACTION_STOP.equals(request.action))
                     return commandAudioStop(request);
+                if (BridgeProtocol.ACTION_LIST.equals(request.action))
+                    return commandAudioList(request);
+                if (BridgeProtocol.ACTION_REMOVE.equals(request.action))
+                    return commandAudioRemove(request);
+            }
+
+            // Handle 'command:video' requests.
+            if (BridgeProtocol.MODULE_VIDEO.equals(request.module))
+            {
+                if (BridgeProtocol.ACTION_RECORD.equals(request.action))
+                    return commandVideoRecord(request);
+                if (BridgeProtocol.ACTION_STOP.equals(request.action))
+                    return commandVideoStop(request);
+                if (BridgeProtocol.ACTION_LIST.equals(request.action))
+                    return commandVideoList(request);
+                if (BridgeProtocol.ACTION_REMOVE.equals(request.action))
+                    return commandVideoRemove(request);
             }
 
             // Handle 'command:screen' requests.
@@ -414,6 +430,13 @@ public final class BridgeRequestHandler
             {
                 if (BridgeProtocol.ACTION_GET.equals(request.action))
                     return mediaAudioGet(request);
+            }
+
+            // Handle 'media:video' requests.
+            if (BridgeProtocol.MODULE_VIDEO.equals(request.module))
+            {
+                if (BridgeProtocol.ACTION_GET.equals(request.action))
+                    return mediaVideoGet(request);
             }
 
             return MediaResponse.notFound(request, "unsupported request " + request.toString());
@@ -2140,7 +2163,7 @@ public final class BridgeRequestHandler
         else return missingProperty(request, "url or filename");
 
         // Call audio unit method.
-        return JsonResponse.bridgeResult(request, service.getBridgeAudioUnit().startAudioPlayback(source, type, streamType));
+        return JsonResponse.bridgeResult(request, service.getBridgeAudioUnit().startPlayback(source, type, streamType));
     }
 
     /**
@@ -2150,13 +2173,13 @@ public final class BridgeRequestHandler
      * request is
      * @code{.json}
      * {
-     *      "length": (optional) number of seconds to record,
+     *      "duration": (optional) maximum recording duration in seconds,
      *      "save": (optional) one of [true, false, "filename"], default false
      * }
      * @endcode
-     * If @c length is 0 or not specified the default value defined in the audio unit is applied. If
-     * @c save is @c true, the audio data will be saved to a file with a name constructed from the
-     * current date and time. If @c save has a string value that value is used as the filename.
+     * If @c duration is 0 or not specified the default value defined in the audio unit is applied.
+     * If @c save is @c true, the audio data will be saved to a file with a name constructed from
+     * the current date and time. If @c save has a string value that value is used as the filename.
      * Specifying the file extension is optional, if not present a @e wav extension is added.
      *
      * @param   request         bridge command request to handle
@@ -2168,12 +2191,11 @@ public final class BridgeRequestHandler
     {
         // Get request properties from JSON payload.
         JsonObject payload = JsonUtils.toJsonObject(request.payload, new JsonObject());
-        int length = JsonUtils.getInteger(payload, "length", 0);
+        int duration = JsonUtils.getInteger(payload, "duration", 0);
         JsonElement save = (payload != null) ? payload.get("save") : null;
 
-        // Validate length property.
-        if (length > BridgeAudioUnit.AUDIO_RECORDING_MAX_DURATION)
-            return JsonResponse.notAcceptable(request, "length may not exceed " + BridgeAudioUnit.AUDIO_RECORDING_MAX_DURATION + " seconds");
+        // Validate duration property.
+        if (duration < 0) return JsonResponse.notAcceptable(request, "duration must not be negative");
 
         // Retrieve file name from save property.
         String filename = null;
@@ -2192,7 +2214,7 @@ public final class BridgeRequestHandler
         Map<String, Object> params = parseParams(payload, "length", "save");
 
         // Call audio unit method
-        return JsonResponse.bridgeResult(request, service.getBridgeAudioUnit().startAudioRecording(length, filename, params));
+        return JsonResponse.bridgeResult(request, service.getBridgeAudioUnit().startRecording(filename, duration, params));
     }
 
     /**
@@ -2208,8 +2230,161 @@ public final class BridgeRequestHandler
     @NonNull
     private JsonResponse commandAudioStop(@NonNull BridgeRequest request)
     {
-        // Stop playing or recording audio.
+        // Call audio unit method
         return JsonResponse.bridgeResult(request, service.getBridgeAudioUnit().stopAudio());
+    }
+
+    /**
+     * Handles a request to return a list of available audio recordings.
+     *
+     * The @e command:audio:list request is forwarded to either the audio unit. The payload for the
+     * request is empty.
+     *
+     * @param   request         bridge command request to handle
+     *
+     * @return  JsonResponse instance containing operation result
+     */
+    @NonNull
+    private JsonResponse commandAudioList(@NonNull BridgeRequest request)
+    {
+        // Call audio unit method
+        return JsonResponse.bridgeResult(request, service.getBridgeAudioUnit().getRecordingList());
+    }
+
+    /**
+     * Handles a request to remove one or more audio recordings.
+     *
+     * The @e command:audio:remove request is forwarded to either the audio unit. The payload for
+     * the request is
+     * @code{.json}
+     * {
+     *      "filename": (mandatory) "filename", or "all" to remove all audio recordings
+     * }
+     * @endcode
+     * Specifying the file extension is optional, if not present a @e wav extension is added.
+     *
+     * @param   request         bridge command request to handle
+     *
+     * @return  JsonResponse instance containing operation result
+     */
+    private JsonResponse commandAudioRemove(@NonNull BridgeRequest request)
+    {
+        // Get request properties from JSON payload.
+        JsonObject payload = JsonUtils.toJsonObject(request.payload, new JsonObject());
+        String filename = JsonUtils.getString(payload, "filename");
+
+        // Validate filename property.
+        if (StringUtils.isBlank(filename)) return missingProperty(request, "filename");
+        if ("all".equalsIgnoreCase(filename)) filename = null;
+
+        // Call audio unit method
+        return JsonResponse.bridgeResult(request, service.getBridgeAudioUnit().removeRecording(filename));
+    }
+
+    /**
+     * Handles a request to start recording video.
+     *
+     * The @e command:video:record request is forwarded to the video unit. The payload for the
+     * request is:
+     * @code{.json}
+     * {
+     *      "duration": (optional) maximum recording duration in seconds
+     *      "filename": (optional) name of video file to create, default current date and time,
+     * }
+     * @endcode
+     * If @c duration is 0 or not specified the default value defined in the video unit is applied.
+     * If @c filename is @c null or an empty string, a file name is generated from the current date
+     * and time. Specifying the file extension is optional, if not present a @e rec extension is
+     * added.
+     *
+     * @param   request         bridge command request to handle
+     *
+     * @return  JsonResponse instance containing operation result
+     */
+    @NonNull
+    private JsonResponse commandVideoRecord(@NonNull BridgeRequest request)
+    {
+        // Get request properties from JSON payload.
+        JsonObject payload = JsonUtils.toJsonObject(request.payload, new JsonObject());
+        int duration = JsonUtils.getInteger(payload, "duration", 0);
+        String filename = JsonUtils.getString(payload, "filename");
+
+        // Validate duration property.
+        if (duration < 0) return JsonResponse.notAcceptable(request, "duration must not be negative");
+
+        // Trim file name.
+        if (filename != null) filename = filename.trim();
+
+        // Set filename from current date if no file name is specified.
+        if (StringUtils.isBlank(filename)) filename = new SimpleDateFormat("yyyyMMdd'_'HHmmss", Locale.getDefault()).format(new Date());
+
+        // Call video unit method.
+        return JsonResponse.bridgeResult(request, service.getSanbotVideoUnit().startRecording(filename, duration));
+    }
+
+    /**
+     * Handles a request to stop video recording.
+     *
+     * The @e command:video:stop request is forwarded to the video unit. The payload for the
+     * request is empty.
+     *
+     * @param   request         bridge command request to handle
+     *
+     * @return  JsonResponse instance containing operation result
+     */
+    @NonNull
+    private JsonResponse commandVideoStop(@NonNull BridgeRequest request)
+    {
+        // Call video unit method.
+        return JsonResponse.bridgeResult(request, service.getSanbotVideoUnit().stopRecording());
+    }
+
+
+    /**
+     * Handles a request to return a list of available video recordings.
+     *
+     * The @e command:video:list request is forwarded to either the audio unit. The payload for the
+     * request is empty.
+     *
+     * @param   request         bridge command request to handle
+     *
+     * @return  JsonResponse instance containing operation result
+     */
+    @NonNull
+    private JsonResponse commandVideoList(@NonNull BridgeRequest request)
+    {
+        // Call audio unit method
+        return JsonResponse.bridgeResult(request, service.getSanbotVideoUnit().getRecordingList());
+    }
+
+    /**
+     * Handles a request to remove one or more video recordings.
+     *
+     * The @e command:video:remove request is forwarded to either the video unit. The payload for
+     * the request is
+     * @code{.json}
+     * {
+     *      "filename": (mandatory) "filename", or "all" to remove all video recordings
+     * }
+     * @endcode
+     * Specifying the file extension is optional, if not present a @e rec extension is added.
+     *
+     * @param   request         bridge command request to handle
+     *
+     * @return  JsonResponse instance containing operation result
+     */
+    private JsonResponse commandVideoRemove(@NonNull BridgeRequest request)
+    {
+        // Get request properties from JSON payload.
+        JsonObject payload = JsonUtils.toJsonObject(request.payload, new JsonObject());
+        String filename = JsonUtils.getString(payload, "filename");
+
+        // Validate filename property.
+        if (StringUtils.isBlank(filename)) return missingProperty(request, "filename");
+        if ("all".equalsIgnoreCase(filename)) filename = null;
+
+        // Call audio unit method
+        return JsonResponse.bridgeResult(request, service.getSanbotVideoUnit().removeRecording(filename));
     }
 
     /**
@@ -2732,8 +2907,40 @@ public final class BridgeRequestHandler
         if (filename != null) filename = filename.trim();
 
         // Call audio unit method.
-        MediaResult result = service.getBridgeAudioUnit().getRecordedAudio(filename);
+        MediaResult result = service.getBridgeAudioUnit().getRecording(filename);
         if (result == null) return MediaResponse.internalError(request, "empty media result");
+        return MediaResponse.create(request, result.getStatusCode(), result.getDescription(), result.getBytes(), result.getMimeType(), result.getMetaData());
+    }
+
+    /**
+     * Handles a request to retrieve a video recording.
+     *
+     * The @e media:video:get request is forwarded to the Sanbot camera service. The payload for
+     * the request is
+     * @code{.json}
+     * {
+     *      "filename": (optional) file name relative to SanbotBridge/video
+     * }
+     * @endcode
+     * If @c filename is not specified the most recent video recording is returned.
+     *
+     * @param   request         bridge media request to handle
+     *
+     * @return  instance of MediaResponse class containing video data
+     */
+    @NonNull
+    private MediaResponse mediaVideoGet(@NonNull BridgeRequest request)
+    {
+        // Get request properties from JSON payload.
+        JsonObject payload = JsonUtils.toJsonObject(request.payload, new JsonObject());
+        String filename = JsonUtils.getString(payload, "filename", null);
+
+        // Validate file name. Trim leading and trailing spaces from file name if not null.
+        if (filename == null) return MediaResponse.internalError(request, "filename");
+        filename = filename.trim();
+
+        // Call video unit method.
+        MediaResult result = service.getSanbotVideoUnit().getRecording(filename);
         return MediaResponse.create(request, result.getStatusCode(), result.getDescription(), result.getBytes(), result.getMimeType(), result.getMetaData());
     }
 
