@@ -29,10 +29,13 @@ import java.util.Map;
  * This class extends the abstract BridgeTtsUnit class to provide access text-to-speech features
  * using the Sanbot @c SpeechManager API.
  *
- * @version     1.0.001
- * @date        4 Aug 2026
+ * @version     1.0.003
+ * @date        5 Oct 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
+ * @since       1.0.001
+ * @changelog
+ * - CHANGE: minor comment updates (1.0.003)
  */
 public final class SanbotTtsUnit extends BridgeTtsUnit
 {
@@ -77,9 +80,9 @@ public final class SanbotTtsUnit extends BridgeTtsUnit
     /**
      * Performs unit initialization tasks.
      *
-     * If the active speech manager instance referenced by the @p initData function parameter is
-     * available it is copied to a member variable, the text-to-speech event listener is registered
-     * with the speech manager, and the unit status is set.
+     * If the active speech manager instance referenced by the @p speechManager function parameter
+     * is available it is copied to a member variable, the text-to-speech event listener is
+     * registered with the speech manager, and the unit status is set.
      *
      * @param   speechManager   active Sanbot SDK @c SpeechManager API instance
      */

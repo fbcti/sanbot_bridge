@@ -43,6 +43,7 @@ import java.util.Map;
  * - @c enableAsr - flag specifying if speech recognition is enabled
  * - @c enableFaceDetection - flag specifying if face detection is enabled
  * - @c enableAlarmDetection - flag specifying if alarm detection is enabled
+ * - @c enableZigbee - flag specifying if Zigbee is enabled
  *
  * Additional settings are set on demand by a REST or WebSocket API request:
  * - @c cameraName - name of active camera
@@ -50,10 +51,13 @@ import java.util.Map;
  * - @c sensorParams - Sanbot hardware sensor parameters
  * - @c ttsParams - speech synthesis parameters
  *
- * @version     1.0.001
+ * @version     1.0.003
  * @date        10 Jul 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
+ * @since       1.0.001
+ * @changelog
+ * - ADD: setting specifying if Zigbee is enabled (1.1.003)
  */
 public final class BridgeConfig
 {
@@ -101,6 +105,11 @@ public final class BridgeConfig
      * Default value of flag specifying if alarm detection is enabled.
      */
     private static final boolean DEFAULT_ENABLE_ALARM_DETECTION = true;
+
+    /**
+     * Default value of flag specifying if Zigbee is enabled.
+     */
+    private static final boolean DEFAULT_ENABLE_ZIGBEE = true;
 
     /**
      * Default camera name.
@@ -151,6 +160,11 @@ public final class BridgeConfig
      * Flag specifying if face detection is enabled.
      */
     private Boolean enableFaceDetection;
+
+    /**
+     * Flag specifying Zigbee unit is enabled.
+     */
+    private Boolean enableZigbee;
 
     /**
      * String specifying name of active camera.
@@ -222,6 +236,7 @@ public final class BridgeConfig
         setEnableAsr(config.enableAsr);
         setEnableFaceDetection(config.enableFaceDetection);
         setEnableAlarmDetection(config.enableAlarmDetection);
+        setEnableZigbee(config.enableZigbee);
         setCameraName(config.getCameraName());
         this.cameras = new CameraConfig(config.cameras);
         this.sensorParams.copyFrom(config.sensorParams);
@@ -388,6 +403,16 @@ public final class BridgeConfig
     public boolean getEnableAlarmDetection()
     {
         return (enableAlarmDetection != null) ? enableAlarmDetection : DEFAULT_ENABLE_ALARM_DETECTION;
+    }
+
+    /**
+     * Returns configured flag specifying if alarm detection is enabled.
+     *
+     * @return  configured alarm detection flag, or default value if not configured
+     */
+    public boolean getEnableZigbee()
+    {
+        return (enableZigbee != null) ? enableZigbee : DEFAULT_ENABLE_ZIGBEE;
     }
 
     /**
@@ -573,6 +598,19 @@ public final class BridgeConfig
     public void setEnableAlarmDetection(Boolean flag)
     {
         enableAlarmDetection = (flag != null) ? flag : DEFAULT_ENABLE_ALARM_DETECTION;
+    }
+
+    /**
+     * Sets flag specifying if Zigbee is enabled.
+     *
+     * @param   flag            flag specifying if Zigbee is enabled
+     *
+     * If @p flag is not a boolean and the flag has not yet been set the default value is set
+     * instead.
+     */
+    public void setEnableZigbee(Boolean flag)
+    {
+        enableZigbee = (flag != null) ? flag : DEFAULT_ENABLE_ZIGBEE;
     }
 
     /**
@@ -832,6 +870,7 @@ public final class BridgeConfig
         setEnableAlarmDetection(DEFAULT_ENABLE_ALARM_DETECTION);
         setEnableAsr(DEFAULT_ENABLE_ASR);
         setEnableFaceDetection(DEFAULT_ENABLE_FACE_DETECTION);
+        setEnableZigbee(DEFAULT_ENABLE_ZIGBEE);
         setCameraName(DEFAULT_CAMERA_NAME);
         cameras = new CameraConfig();
         sensorParams = new SensorParams();

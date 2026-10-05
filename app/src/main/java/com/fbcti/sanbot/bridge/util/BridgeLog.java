@@ -14,10 +14,13 @@ import java.util.List;
 /**
  * Provides a shared Android log tag while preserving the class/source label in the message.
  *
- * @version     1.0.001
- * @date        21 Jul 2026
+ * @version     1.0.003
+ * @date        5 Oct 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
+ * @since       1.0.001
+ * @changelog
+ * - CHANGE: minor formatting updates (1.1.003)
  */
 public final class BridgeLog
 {
@@ -162,7 +165,7 @@ public final class BridgeLog
     {
         List<String> kvpList = new ArrayList<>();
         for (Object arg : args) kvpList.add(arg.toString());
-        BridgeLog.verbose(source, String.format("*** %s: %s(%s) ***", api, method, TextUtils.join(",", kvpList)));
+        BridgeLog.verbose(source, String.format("%s.%s(%s)", api, method, TextUtils.join(",", kvpList)));
     }
 
     /**
@@ -177,7 +180,7 @@ public final class BridgeLog
     {
         List<String> kvpList = new ArrayList<>();
         for (Object arg : args) kvpList.add(arg.toString());
-        BridgeLog.verbose(source, String.format("+++ %s: %s(%s) +++", api, method, TextUtils.join(",", kvpList)));
+        BridgeLog.verbose(source, String.format("%s.%s(%s)", api, method, TextUtils.join(",", kvpList)));
     }
 
     /***********************************************************************************************

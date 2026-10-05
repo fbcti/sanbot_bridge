@@ -7,10 +7,14 @@ package com.fbcti.sanbot.bridge.transport;
 /**
  * Defines shared bridge service transport protocol constants.
  *
- * @version     1.0.002
- * @date        26 Sep 2026
+ * @version     1.0.003
+ * @date        5 Oct 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
+ * @since       1.0.001
+ * @changelog
+ * - NEW: added event signaling motion has stopped (1.1.003)
+ * - CHANGE: multiple event names updated (1.1.003)
  */
 public final class BridgeProtocol
 {
@@ -28,7 +32,6 @@ public final class BridgeProtocol
      * - @e event: unsolicited robot event message
      * @{ 
      */ 
-
     public static final String TYPE_INFO = "info";              ///< Info request type.
     public static final String TYPE_QUERY = "query";            ///< Query request type.
     public static final String TYPE_COMMAND = "command";        ///< Command request type.
@@ -61,13 +64,16 @@ public final class BridgeProtocol
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // EVENT MESSAGES
     ////////////////////////////////////////////////////////////////////////////////////////////////
+    public static final String EVENT_MOVE = "move";
+    public static final String EVENT_STOP = "stop";
     public static final String EVENT_PRESSED = "pressed";
     public static final String EVENT_RELEASED = "released";
     public static final String EVENT_DETECTED = "detected";
-    public static final String EVENT_ALARM = "alarm";
     public static final String EVENT_CLEARED = "cleared";
     public static final String EVENT_SPEAK = "speak";
+    public static final String EVENT_ALARM = "alarm";
     public static final String EVENT_FACE = "face";
+    public static final String EVENT_ZIGBEE = "zigbee";
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // DEFINITIONS FOR ROBOT MODULES

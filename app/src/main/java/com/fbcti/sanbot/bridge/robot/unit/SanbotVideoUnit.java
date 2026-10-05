@@ -61,10 +61,13 @@ import java.util.concurrent.TimeUnit;
  * different rate. The original @e REC file is not modified.
  * @endparblock
  *
- * @version     1.0.002
- * @date        26 Sep 2026
+ * @version     1.0.003
+ * @date        5 Oct 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
+ * @since       1.0.001
+ * @changelog
+ * - CHANGE: minor comment updates
  */
 public final class SanbotVideoUnit extends BridgeUnit
 {
@@ -416,7 +419,7 @@ public final class SanbotVideoUnit extends BridgeUnit
     /**
      * Returns the names of all completed video recordings currently in the recorder directory.
      *
-     * @return  Java @Set instance containing video file names.
+     * @return  Java @c Set instance containing video file names.
      */
     @NonNull
     private Set<String> listVideoFiles()

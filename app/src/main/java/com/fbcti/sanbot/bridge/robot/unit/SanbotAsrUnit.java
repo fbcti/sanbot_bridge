@@ -24,17 +24,20 @@ import com.sanbot.opensdk.function.unit.interfaces.speech.WakenListener;
  *
  * This class extends the abstract BridgeUnit class to provide direct access to Sanbot speech
  * recognition resources.
- *
- * @version     1.0.001
- * @date        4 Aug 2026
- * @author      Ferry Blaazer
- * @copyright   2026 FBCTI
- *
+
  * @note
  * The Sanbot SDK uses the Google speech recognition service to translate the spoken text in written
  * text, and then performs semantic parsing of the text to obtain a topic and an action. A custom
  * grammar file may contan up to 20 entries that translate spoken phrases to a topic and action. For
  * now the parsed result is unknown, and the recognized text is returned as-is.
+ *
+ * @version     1.0.003
+ * @date        5 Oct 2026
+ * @author      Ferry Blaazer
+ * @copyright   2026 FBCTI
+ * @since       1.0.001
+ * @changelog
+ * - CHANGE: multiple event names updated (1.1.003)
  */
 public final class SanbotAsrUnit extends BridgeUnit
 {
@@ -197,7 +200,7 @@ public final class SanbotAsrUnit extends BridgeUnit
         public void onStartRecognize()
         {
             BridgeLog.apievent("SanbotSDK", "RecognizeListener", "onStartRecognize");
-            publishEvent(BridgeProtocol.MODULE_SPEECH, "recognition_started", null);
+            publishEvent(BridgeProtocol.MODULE_SPEECH, "recognize_start", null);
         }
 
         /**
@@ -207,7 +210,7 @@ public final class SanbotAsrUnit extends BridgeUnit
         public void onStopRecognize()
         {
             BridgeLog.apievent("SanbotSDK", "RecognizeListener", "onStopRecognize");
-            publishEvent(BridgeProtocol.MODULE_SPEECH, "recognition_stopped", null);
+            publishEvent(BridgeProtocol.MODULE_SPEECH, "recognize_stop", null);
         }
 
         /**

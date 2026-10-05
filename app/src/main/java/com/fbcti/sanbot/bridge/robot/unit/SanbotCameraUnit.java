@@ -33,7 +33,7 @@ import java.util.Map;
  * located in the robot head through the single SanbotCameraManager instance. It supports @e MJPEG
  * video streaming, image capture, and face detection and capture. The class implements methods for
  * the initialization and shutdown of the unit as well as for handling images obtained from the
- * SAnbot face detection feature. All other functionality is implemented by the base class.
+ * Sanbot face detection feature. All other functionality is implemented by the base class.
  *
  * Live video capture and still image capture are handled through separate streams so both
  * operations can be active at the same time. Live video capture uses a long-lived video stream
@@ -81,9 +81,12 @@ import java.util.Map;
  *   image is resized keeping the original aspect ratio.
  *
  * @version     1.0.001
- * @date        19 Sep 2026
+ * @date        5 Oct 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
+ * @since       1.0.001
+ * @changelog
+ * - CHANGE: minor comment updates (1.0.003)
  */
 public final class SanbotCameraUnit extends BridgeCameraUnit
 {

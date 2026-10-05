@@ -1,6 +1,6 @@
 apply plugin: 'com.android.application'
 
-def productVersion = "1.0.002"
+def productVersion = "1.0.003"
 def externalBuildDir = System.getenv("SANBOTBRIDGE_BUILD_DIR")
 if (externalBuildDir != null && !externalBuildDir.trim().isEmpty()) {
     buildDir = file(externalBuildDir)
@@ -22,7 +22,7 @@ android {
         applicationId "com.fbcti.sanbot.bridge"
         minSdkVersion 21
         targetSdkVersion 23
-        versionCode 1002
+        versionCode 1003
         versionName productVersion
     }
 

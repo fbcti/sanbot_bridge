@@ -22,10 +22,14 @@ import java.util.Map;
  * This class implements methods that are shared by derived speech unit classes and declares
  * abstract methods that must be derived by those classes.
  *
- * @version     1.0.001
- * @date        11 Sep 2026
+ * @version     1.0.003
+ * @date        5 Oct 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
+ * @since       1.0.001
+ * @changelog
+ * - CHANGE: startSpeaking() now applies configured settings instead of falling back to default
+ *   settings (1.1.003)
  */
 public abstract class BridgeTtsUnit extends BridgeUnit
 {
@@ -122,7 +126,11 @@ public abstract class BridgeTtsUnit extends BridgeUnit
         // Apply the updated parameters if the text-to-speech engine is available.
         if (isTtsReady())
         {
-            DataResult result = applyTtsParams(params);
+            // Apply the complete post-merge configuration. The supplied parameter map may contain
+            // only request-specific overrides; treating omitted values as defaults would discard
+            // settings established by an earlier configuration request.
+            Map<String, Object> currentParams = config.getTtsParams(config.getTtsName());
+            DataResult result = applyTtsParams(currentParams);
             if (result.isFailure()) return result;
         }
 

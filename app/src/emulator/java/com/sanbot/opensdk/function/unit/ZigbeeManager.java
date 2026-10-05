@@ -30,12 +30,12 @@ public class ZigbeeManager
 
     public OperationResult switchWhtieList(boolean b) { return new OperationResult(); }
 
-    public static class ZigbeeListener
+    public static interface ZigbeeListener
     {
-        public void notifyWhiteList(@NonNull String s) {}
+        public void notifyWhiteList(@NonNull String s);
 
-        public void notifyStatusChange(@NonNull String s) {}
+        public void notifyStatusChange(@NonNull String s);
 
-        public void notifyInfo(@NonNull String s) {}
+        public void notifyInfo(@NonNull String s);
     }
 }

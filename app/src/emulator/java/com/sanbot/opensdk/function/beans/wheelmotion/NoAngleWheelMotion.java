@@ -34,18 +34,11 @@ public class NoAngleWheelMotion
         this.duration = duration;
     }
 
-    public byte getAction()
-    {
-        return action;
-    }
+    public byte getAction() { return action; }
 
-    public int getSpeed()
-    {
-        return speed;
-    }
+    public int getSpeed() { return speed; }
 
-    public int getDuration()
-    {
-        return duration;
-    }
+    public byte getLsbDuration() { return (byte)(duration & 0xFF); }
+
+    public byte getMsbDuration() { return (byte)((duration >> 8) & 0xFF); }
 }

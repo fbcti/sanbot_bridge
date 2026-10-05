@@ -12,6 +12,9 @@ public final class FuncConstant
     public static final String HARDWARE_MANAGER = "HARDWARE_MANAGER";
     public static final String HDCAMERA_MANAGER = "HDCAMERA_MANAGER";
     public static final String ZIGBEE_MANAGER = "ZIGBEE_MANAGER";
+    public static final int WHEEL_MOTION_NO_ANGLE = 529;
+    public static final int WHEEL_MOTION_RELATIVE_ANGLE = 530;
+    public static final int WHEEL_MOTION_DISTANCE = 531;
 
     private FuncConstant() {}
 }

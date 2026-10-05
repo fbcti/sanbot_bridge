@@ -16,18 +16,11 @@ public class DistanceWheelMotion
         this.distance = distance;
     }
 
-    public byte getAction()
-    {
-        return action;
-    }
+    public byte getAction() { return action; }
 
-    public int getSpeed()
-    {
-        return speed;
-    }
+    public int getSpeed() { return speed; }
 
-    public int getDistance()
-    {
-        return distance;
-    }
+    public byte getLsbDistance() { return (byte)(distance & 0xFF); }
+
+    public byte getMsbDistance() { return (byte)((distance >> 8) & 0xFF); }
 }

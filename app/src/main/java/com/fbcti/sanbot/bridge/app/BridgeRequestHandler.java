@@ -61,10 +61,13 @@ import java.util.Set;
  * payload are assumed to be normalized, i.e. they are in lower case and do not contain leading or
  * trailing whitespace.
  *
- * @version     1.0.002
- * @date        26 sep 2026
+ * @version     1.0.003
+ * @date        5 Oct 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
+ * @since       1.0.001
+ * @changelog
+ * - CHANGE: @c moveHeadToAbslutePosition() changed to moveHeadToAbsolutePosition() (1.0.003)
  */
 public final class BridgeRequestHandler
 {
@@ -1311,7 +1314,7 @@ public final class BridgeRequestHandler
         if (action == null) return invalidProperty(request, "lock", lock);
 
         // Call motion unit method.
-        return JsonResponse.bridgeResult(request, service.getSanbotMotionUnit().moveHeadToAbslutePosition(action, hangleSanbot, vangleSanbot));
+        return JsonResponse.bridgeResult(request, service.getSanbotMotionUnit().moveHeadToAbsolutePosition(action, hangleSanbot, vangleSanbot));
     }
 
     /**

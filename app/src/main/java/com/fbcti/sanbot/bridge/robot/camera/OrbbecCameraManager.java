@@ -82,10 +82,14 @@ import java.util.concurrent.atomic.AtomicInteger;
  * format, and just retains the luminance byte only to produce a gray-scale image,
  * @endparblock
  *
- * @version     1.0.001
- * @date        2 Sep  2026
+ * @version     1.0.003
+ * @date        5 Oct 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
+ * @since       1.0.001
+ * @changelog
+ * - FIX: fixed wrong image type in decodeDepthAsGray8() (1.1.003)
+ * - FIX: fixed incorrect array size in decodeDepthAsRgb() (1.1.003)
  */
 public final class OrbbecCameraManager implements BridgeCameraManager
 {
@@ -1487,7 +1491,7 @@ public final class OrbbecCameraManager implements BridgeCameraManager
         int rangeMin = stream.decodeMode.depthRangeLower;
         int rangeMax = stream.decodeMode.depthRangeUpper;
         int range = rangeMax - rangeMin;
-        int byteCount = Math.min(width*height, bytes.length);
+        int byteCount = Math.min(width*height*2, bytes.length);
         byte[] decoded = new byte[3*byteCount/2];
 
         // Transform byte values to RGB values.
@@ -1537,7 +1541,7 @@ public final class OrbbecCameraManager implements BridgeCameraManager
             int depth = (bytes[byteIndex++] & 0xFF) | ((bytes[byteIndex++] & 0xFF) << 8);
             decoded[decodedIndex++] = (byte)(scaleToByteReversed(depth, rangeMin, rangeMax, range) & 0xFF);
         }
-        stream.frameBuffer.setData(decoded, Image.Type.RGB888, width, height);
+        stream.frameBuffer.setData(decoded, Image.Type.GRAY8, width, height);
     }
 
     /**

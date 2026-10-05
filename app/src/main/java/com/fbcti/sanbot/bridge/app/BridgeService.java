@@ -44,6 +44,7 @@ import com.fbcti.sanbot.bridge.robot.unit.SanbotLedUnit;
 import com.fbcti.sanbot.bridge.robot.unit.SanbotMotionUnit;
 import com.fbcti.sanbot.bridge.robot.unit.SanbotSensorUnit;
 import com.fbcti.sanbot.bridge.robot.unit.SanbotTtsUnit;
+import com.fbcti.sanbot.bridge.robot.unit.SanbotZigbeeUnit;
 import com.fbcti.sanbot.bridge.transport.BridgeEvent;
 import com.fbcti.sanbot.bridge.transport.BridgeProtocol;
 import com.fbcti.sanbot.bridge.transport.BridgeRequest;
@@ -58,6 +59,7 @@ import com.fbcti.sanbot.bridge.util.FileUtils;
 import com.fbcti.sanbot.bridge.util.JsonUtils;
 import com.fbcti.sanbot.bridge.util.MapUtils;
 import com.fbcti.sanbot.bridge.util.StringUtils;
+import com.fbcti.sanbot.bridge.util.ValueUtils;
 import com.google.gson.JsonObject;
 import com.sanbot.opensdk.base.BindBaseService;
 import com.sanbot.opensdk.beans.FuncConstant;
@@ -97,10 +99,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * the bridge application, creates and initialized the HTTP server, keeps the main activity window
  * visible, and owns the traffic log.
  *
- * @version     1.0.002
- * @date        26 Sep 2026
+ * @version     1.0.003
+ * @date        5 Oct 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
+ * @since       1.0.001
+ * @changelog
+ * - CHANGE: Zigbee functionality moved to SanbotZigbeeUnit (1.0.003)
  */
 public class BridgeService extends BindBaseService
 {
@@ -181,9 +186,6 @@ public class BridgeService extends BindBaseService
     /** Modular motion manager. */
     private ModularMotionManager modularMotionManager;
 
-    /** Sanbot Zigbee manager. */
-    private ZigbeeManager zigbeeManager;
-
     /** Android camera manager. */
     private AndroidCameraManager androidCameraManager;
 
@@ -192,6 +194,9 @@ public class BridgeService extends BindBaseService
 
     /** Sanbot camera manager. */
     private SanbotCameraManager sanbotCameraManager;
+
+    /** Zigbee manager. */
+    private ZigbeeManager zigbeeManager;
 
     /** Instance of class managing Android system operations. */
     private AndroidSystemUnit androidSystemUnit;
@@ -228,6 +233,9 @@ public class BridgeService extends BindBaseService
 
     /** Instance of class managing Sanbot SDK speech recognition operations. */
     private SanbotAsrUnit sanbotAsrUnit;
+
+    /** Instance of class managing Sanbot SDK Zigbee operations. */
+    private SanbotZigbeeUnit sanbotZigbeeUnit;
 
     /**
      * @name    Event Listeners / Callback Hosts
@@ -391,6 +399,8 @@ public class BridgeService extends BindBaseService
         bridgeTtsUnit = null;
         shutdownBridgeUnit(sanbotAsrUnit);
         sanbotAsrUnit = null;
+        shutdownBridgeUnit(sanbotZigbeeUnit);
+        sanbotZigbeeUnit = null;
 
         // Shut down camera managers.
         if (androidCameraManager != null) androidCameraManager.shutdown();
@@ -996,6 +1006,7 @@ public class BridgeService extends BindBaseService
         if (units.contains("audio")) data.put("audioUnit", getBridgeAudioUnit().buildStatusData());
         if (units.contains("tts")) data.put("ttsUnitStatus", getBridgeTtsUnit().buildStatusData());
         if (units.contains("asr")) data.put("asrUnitStatus", getSanbotAsrUnit().buildStatusData());
+        if (units.contains("zigbee")) data.put("asrUnitStatus", getSanbotZigbeeUnit().buildStatusData());
         return data;
     }
 
@@ -1396,6 +1407,18 @@ public class BridgeService extends BindBaseService
     }
 
     /**
+     * Returns existing or new instance of SanbotZigbeeUnit class.
+     *
+     * @return  instance of SanbotZigbeeUnit class
+     */
+    @NonNull
+    synchronized SanbotZigbeeUnit getSanbotZigbeeUnit()
+    {
+        if (sanbotZigbeeUnit == null) sanbotZigbeeUnit = new SanbotZigbeeUnit(config, bridgeEventHost);
+        return sanbotZigbeeUnit;
+    }
+
+    /**
      * Returns the current bridge status.
      *
      * This method returns a string that specifies if the bridge service is active or inactive, and
@@ -1473,7 +1496,7 @@ public class BridgeService extends BindBaseService
         systemManager = (SystemManager)getUnitManager(FuncConstant.SYSTEM_MANAGER);
         hardwareManager = (HardWareManager)getUnitManager(FuncConstant.HARDWARE_MANAGER);
         modularMotionManager = (ModularMotionManager)getUnitManager(FuncConstant.MODULARMOTION_MANAGER);
-        zigbeeManager = (ZigbeeManager)getUnitManager((FuncConstant.ZIGBEE_MANAGER));
+        zigbeeManager = (ZigbeeManager)getUnitManager(FuncConstant.ZIGBEE_MANAGER);
 
         BridgeLog.info(TAG, "Starting camera managers...");
 
@@ -1572,6 +1595,9 @@ public class BridgeService extends BindBaseService
 
         if (sanbotAsrUnit == null) getSanbotAsrUnit();
         else sanbotAsrUnit.init(getSanbotSpeechManager());
+
+        // Initialize Zigbee unit.
+        getSanbotZigbeeUnit().init(zigbeeManager);
 
         BridgeLog.info(TAG, "All bridge units started...");
     }
@@ -2162,7 +2188,7 @@ public class BridgeService extends BindBaseService
     /**
      * Implements home alarm event handlers.
      *
-     * This class implements methods that handle events thrown by the Sanbot @ Alarm application.
+     * This class implements methods that handle events thrown by the Sanbot @c Alarm application.
      */
     private final class HomeAlarmEventListener implements IDarlingListener
     {
@@ -2553,47 +2579,11 @@ public class BridgeService extends BindBaseService
         if ("queryPIRStatus".equals(func)) return DataResult.fromOperationResult(hardwareManager.queryPirStatus(1));
         if ("queryGravityData".equals(func)) return DataResult.fromOperationResult(hardwareManager.queryGravityData());
         if ("queryBatteryStatus".equals(func)) return DataResult.fromOperationResult(hardwareManager.queryBatteryStatus());
-        if ("zigbee".equals(func)) return testZigbee();
-
-        return DataResult.failure("unknown test function");
-    }
-
-    @NonNull
-    private DataResult testZigbee()
-    {
-        zigbeeManager.setZigbeeListener(new ZigbeeManager.ZigbeeListener()
+        if ("zigbee".equals(func))
         {
-            @Override
-            public void notifyWhiteList(@NonNull String s)
-            {
-                BridgeLog.debug("ZIGBEE", "notifyWhiteList " + s);
-            }
-
-            @Override
-            public void notifyStatusChange(@NonNull String s)
-            {
-                BridgeLog.debug("ZIGBEE", "notifyStatusChange " + s);
-
-            }
-
-            @Override
-            public void notifyInfo(@NonNull String s)
-            {
-                BridgeLog.debug("ZIGBEE", " notifyInfo" + s);
-
-            }
-        });
-
-/*
-        JsonObject json = new JsonObject();
-        json.addProperty("macaddr", "00178801080ae53c");
-        BridgeLog.debug("[ZIGBEE1]", zigbeeManager.addWhiteList(json.toString()).getResult());
-        BridgeLog.debug("[ZIGBEE2]", zigbeeManager.getWhiteList().getResult());
-        BridgeLog.debug("[ZIGBEE3]", zigbeeManager.switchWhtieList(false).getResult());
-        BridgeLog.debug("[ZIGBEE4]", zigbeeManager.getWhiteList().getResult());
-        BridgeLog.debug("[ZIGBEE5]", zigbeeManager.setAllowJoinTime(600).getResult());
-
-*/
-        return DataResult.success();
+            Integer i = ValueUtils.toInteger((!params.isEmpty()) ? params.get(0) : "0");
+            return getSanbotZigbeeUnit().test((i != null) ? i : 0);
+        }
+        return DataResult.failure("unknown test function");
     }
 }

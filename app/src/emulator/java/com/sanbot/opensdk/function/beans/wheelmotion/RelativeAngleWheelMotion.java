@@ -17,18 +17,11 @@ public class RelativeAngleWheelMotion
         this.angle = angle;
     }
 
-    public byte getAction()
-    {
-        return action;
-    }
+    public byte getAction() { return action; }
 
-    public int getSpeed()
-    {
-        return speed;
-    }
+    public int getSpeed() { return speed; }
 
-    public int getAngle()
-    {
-        return angle;
-    }
+    public byte getLsbAngle() { return (byte)(angle & 0xFF); }
+
+    public byte getMsbAngle() { return (byte)((angle >> 8) & 0xFF); }
 }
