@@ -581,7 +581,8 @@ Instructs the robot to move in the specified direction. The payload for this req
 {
   "direction": (mandatory) direction in which to move,
   "duration": (optional) duration in units of 100ms, default 0,
-  "speed": (optional) speed in range [1..10], default 5
+  "speed": (optional) speed in range [1..10], default 5,
+  "nowait": (optional) one of [true, false]; see below
 }
 ```
 Supported values of `direction` are
@@ -601,16 +602,21 @@ Supported values of `direction` are
   - `stop` - stop all movement
   - `reset` - reset wheel motion
 
-If `duration` is equal to 0 motion continues until explicitly stopped by a stop request.
+If `duration` is equal to 0 motion continues until explicitly stopped by a stop request. By default, 
+the command is only executed if the previous requested motion operation has completed. If @c nowait 
+equal @c true, the command is executed immediately, interrupting the current operation.
 
 ### command:robot:walk
 Instructs the robot to move the specified distance forward or to stop moving forward. The payload for this request is
 ```json
 {
   "distance": (mandatory) distance in centimeters,
-  "speed": (optional) speed in range [1..10], default 5
+  "speed": (optional) speed in range [1..10], default 5,
+  "nowait": (optional) one of [true, false]; see below
 }
 ```
+By default, the command is only executed if the previous requested motion operation has completed. 
+If @c nowait equal @c true, the command is executed immediately, interrupting the current operation.
 
 ### command:robot:turn
 Instructs the robot to turn left or right by the specified angle. The payload for this request is
@@ -618,9 +624,12 @@ Instructs the robot to turn left or right by the specified angle. The payload fo
 {
   "direction": (mandatory) one of [`left`, `right`, `stop`],
   "angle": (mandatory) angle in degrees,
-  "speed": (optional) speed in range [1..10], default 5
+  "speed": (optional) speed in range [1..10], default 5,
+  "nowait": (optional) one of [true, false]; see below
 }
 ```
+By default, the command is only executed if the previous requested motion operation has completed. 
+If @c nowait equal @c true, the command is executed immediately, interrupting the current operation.
 
 ### command:robot:modular
 Instructs the robot to start or stop one of the modular motion modes. The payload for this request is:
@@ -1536,15 +1545,23 @@ To create a single HTML file with the configuration embedded, run:
 The script validates the source files and generates the standalone `client/dashboard-console.html`. Re-run it after changing either `dashboard-console-source.html` or `dashboard-console-source.js`.
 
 # Version History
-- **1.0.003**
+- **1.0.004 (9 Oct 2026)**
+  - NEW: A @c flush parameter is added to Android text-to-speech @c say command to cancel current 
+    and queued operations.
+  - NEW: A @c nowait parameter is added to robot motion commands to immediately execute the command 
+    as in application versions prior to 1.0.003. 
+- **1.0.003 (5 Oct 2026)**
   - FIXED: The @e command:speech:say command does now correctly apply configured text-to-speech 
-  - values for parameters that are not explicitly specified in the request instead of falling back 
+    values for parameters that are not explicitly specified in the request instead of falling back 
     to default parameters.
+  - NEW: Robot motion commands are queued so the command is only executed if previous operations are
+    either complted or timed out; 
   - CHANGED: The event:robot:wheels event is split: for all statuses not equal to 0 a new event
     @e event:robot:move is introduced with the status in the event data, for status 0 the event is 
     now @e event:robot:stop without any event data.
-- **1.0.002**
+- **1.0.002 (26 Sep 20206)**
   - ADDED: Video recording (@e command:video:record, @e command:video:stop).
   - ADDED: Listing and removing audio and video recording files (@e command:video:list, 
     @e command:video:remove)
-- **1.0.001** — Initial version.
+- **1.0.001 (24 Sep 2026)** 
+  — Initial version.

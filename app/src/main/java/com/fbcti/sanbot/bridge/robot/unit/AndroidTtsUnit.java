@@ -38,9 +38,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  * through the native Android @c TextToSpeech API.
  *
  * @version     1.0.001
- * @date        4 Jul 2026
+ * @date        9 Oct 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
+ * @since       1.0.001
+ * @changelog
+ * - NEW: @c flush parameter added to @c speak request to cancel current and queued text-to-speech
+ *   operations (1.0.004)
  */
 public final class AndroidTtsUnit extends BridgeTtsUnit
 {
@@ -196,6 +200,11 @@ public final class AndroidTtsUnit extends BridgeTtsUnit
      * @param   text            text to speak
      * @param   params          Java @c map instance containing optional text-to-speech parameters
      *
+     * By default, speech operations are queued so a speech operation is only executed if previous
+     * speech operations are competed.  A @c flush parameter may be supplied to flush the current
+     * speech operation and remove all earlier speech operation from the queue so the specified text
+     * is spoken immediately.
+     *
      * @return  DataResult instance specifying operation result
      *
      * If the speak request is submitted the @c result property in the operation result object is a
@@ -218,8 +227,13 @@ public final class AndroidTtsUnit extends BridgeTtsUnit
         // Create a unique utterance id.
         String utteranceId = "android-tts-" + System.currentTimeMillis();
 
+        // Get queue parameter parameter.
+        Object flush = (params.containsKey("flush")) ? params.get("flush") : false;
+        int queue = ((flush instanceof Boolean) && ((Boolean)flush) == true) ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD;
+
         // Call Android TextToSpeech API function.
-        int resultCode = speechManager.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId);
+        BridgeLog.apicall("AndroidSDK", "TextToSpeech", "speak", "queue", queue, "utteranceId", utteranceId);
+        int resultCode = speechManager.speak(text, queue, null, utteranceId);
         Map<String, Object> data = MapUtils.createMap("utteranceId", utteranceId, "resultCode", resultCode);
         if (resultCode == TextToSpeech.SUCCESS) return DataResult.success("Android TTS request accepted", data);
         else return DataResult.failure("Android TTS request failed", data);

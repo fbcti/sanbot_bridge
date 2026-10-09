@@ -61,12 +61,13 @@ import java.util.Set;
  * payload are assumed to be normalized, i.e. they are in lower case and do not contain leading or
  * trailing whitespace.
  *
- * @version     1.0.003
+ * @version     1.0.004
  * @date        5 Oct 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
  * @since       1.0.001
  * @changelog
+ * - NEW: @c nowait parameter added to force motion commands to be executed immediately (1.0.004)
  * - CHANGE: @c moveHeadToAbslutePosition() changed to moveHeadToAbsolutePosition() (1.0.003)
  */
 public final class BridgeRequestHandler
@@ -812,6 +813,7 @@ public final class BridgeRequestHandler
      *      "direction": (mandatory) see below,
      *      "duration": (optional) duration in units of 100ms, default 0,
      *      "speed": (optional) speed in range [1..10], default 5
+     *      "nowait": (optional) one of [true, false]; see below
      * }
      * @endcode
      * Supported values of @c direction are.
@@ -832,7 +834,9 @@ public final class BridgeRequestHandler
      * - @c reset - reset wheel motion
      *
      * The direction is converted to a Sanbot SDK wheel action. If @c duration is equal to 0
-     * motion continues until explicitly stopped by a stop request.
+     * motion continues until explicitly stopped by a stop request. By default, the command is only
+     * executed if the previous requested motion operation has completed. If @c nowait equal
+     * @c true, the command is executed immediately, interrupting the current operation.
      *
      * @param   request         bridge command request to handle
      *
@@ -846,6 +850,7 @@ public final class BridgeRequestHandler
         String direction = JsonUtils.getString(payload, "direction");
         int duration = JsonUtils.getInteger(payload, "duration", 0);
         int speed = JsonUtils.getInteger(payload, "speed", 5);
+        boolean nowait = JsonUtils.getBoolean(payload, "nowait", false);
 
         // Validate direction property and convert to Sanbot SDK wheel action.
         if (direction == null) return missingProperty(request, "direction");
@@ -860,7 +865,7 @@ public final class BridgeRequestHandler
         }
 
         // Call motion unit method.
-        DataResult result = service.getSanbotMotionUnit().moveRobotDuration(action, speed, duration);
+        DataResult result = service.getSanbotMotionUnit().moveRobotDuration(action, speed, duration, nowait);
         return JsonResponse.bridgeResult(request, result);
     }
 
@@ -873,8 +878,12 @@ public final class BridgeRequestHandler
      * {
      *      "distance": (mandatory) distance in centimeters,
      *      "speed": (optional) speed in range [1..10], default 5
-     * }
+     *      "nowait": (optional) one of [true, false]
+    * }
      * @endcode
+     * By default, the command is only executed if the previous requested motion operation has
+     * completed. If @c nowait equal @c true, the command is executed immediately, interrupting the
+     * current operation.
      *
      * @param   request         bridge command request to handle
      *
@@ -887,6 +896,7 @@ public final class BridgeRequestHandler
         JsonObject payload = JsonUtils.toJsonObject(request.payload, new JsonObject());
         Integer distance = JsonUtils.getInteger(payload, "distance");
         int speed = JsonUtils.getInteger(payload, "speed", 5);
+        boolean nowait = JsonUtils.getBoolean(payload, "nowait", false);
 
         // Validate distance property.
         if ((distance == null) || (distance < 0)) return invalidProperty(request, "distance", distance);
@@ -895,7 +905,7 @@ public final class BridgeRequestHandler
         if ((speed < 1) || (speed > 10)) return invalidProperty(request, "speed", speed);
 
         // Call motion unit method.
-        DataResult result = service.getSanbotMotionUnit().moveRobotForward(DistanceWheelMotion.ACTION_FORWARD_RUN, speed, distance);
+        DataResult result = service.getSanbotMotionUnit().moveRobotForward(DistanceWheelMotion.ACTION_FORWARD_RUN, speed, distance, nowait);
         return JsonResponse.bridgeResult(request, result);
     }
 
@@ -909,8 +919,12 @@ public final class BridgeRequestHandler
      *      "direction": (mandatory) one of ["left", "right", "stop"],
      *      "angle": (mandatory) angle in degrees,
      *      "speed": (optional) speed in range [1..10], default 5
+     *      "nowait": (optional) one of [true, false]
      * }
      * @endcode
+     * By default, the command is only executed if the previous requested motion operation has
+     * completed. If @c nowait equal @c true, the command is executed immediately, interrupting the
+     * current operation.
      *
      * @param   request         bridge command request to handle
      *
@@ -924,6 +938,7 @@ public final class BridgeRequestHandler
         String direction = JsonUtils.getString(payload, "direction");
         Integer angle = JsonUtils.getInteger(payload, "angle");
         int speed = JsonUtils.getInteger(payload, "speed", 5);
+        boolean nowait = JsonUtils.getBoolean(payload, "nowait", false);
 
         // Validate direction property and convert to Sanbot SDK wheel action.
         if (direction == null) return missingProperty(request, "direction");
@@ -937,7 +952,7 @@ public final class BridgeRequestHandler
         if ((speed < 1) || (speed > 10)) return invalidProperty(request, "speed", speed);
 
         // Call motion unit method.
-        DataResult result = service.getSanbotMotionUnit().turnRobotByAngle(action, speed, angle);
+        DataResult result = service.getSanbotMotionUnit().turnRobotByAngle(action, speed, angle, nowait);
         return JsonResponse.bridgeResult(request, result);
     }
 

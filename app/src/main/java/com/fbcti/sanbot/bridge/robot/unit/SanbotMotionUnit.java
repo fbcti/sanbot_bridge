@@ -57,12 +57,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  * - @c HandMotionManager
  * - @c WaistMotionManager
  *
- * @version     1.0.003
+ * @version     1.0.004
  * @date        5 Oct 2026
  * @author      Ferry Blaazer
  * @copyright   2026 FBCTI
  * @since       1.0.001
  * @changelog
+ * - NEW: @c nowait parameter added to force motion commands to be executed immediately (1.0.004)
  * - NEW: robot motion commands are queued (1.0.003)
  *
  * @todo    03/10/2026 - Improve calculation of motion timeouts.
@@ -135,6 +136,7 @@ public final class SanbotMotionUnit extends BridgeUnit
      * @param   action          wheels action
      * @param   speed           speed with which to move wheels
      * @param   duration        motion duration in units of 100ms
+     * @param   nowait          if @c true, discard waiting commands and interrupt the active motion
      *
      * Possible values of @p action are specified by the Sanbot SDK @c NoAngleWheelMotion class.
      *
@@ -146,7 +148,7 @@ public final class SanbotMotionUnit extends BridgeUnit
      * @return  DataResult instance specifying operation result
      */
     @NonNull
-    public synchronized DataResult moveRobotDuration(byte action, int speed, int duration)
+    public synchronized DataResult moveRobotDuration(byte action, int speed, int duration, boolean nowait)
     {
         if (unitStatus == UnitStatus.EMULATED) return DataResult.emulated();
         if (wheelMotionManager == null) return DataResult.notavailable(FuncConstant.WHEELMOTION_MANAGER);
@@ -155,7 +157,7 @@ public final class SanbotMotionUnit extends BridgeUnit
         int timeout = (duration + 10)/10;
 
         NoAngleWheelMotion motion = new NoAngleWheelMotion(action, speed, duration);
-        return commandQueue.submit(FuncConstant.WHEEL_MOTION_NO_ANGLE, motion, timeout);
+        return commandQueue.submit(FuncConstant.WHEEL_MOTION_NO_ANGLE, motion, nowait, timeout);
     }
 
     /**
@@ -168,6 +170,7 @@ public final class SanbotMotionUnit extends BridgeUnit
      * @param   action          wheels action
      * @param   speed           speed with which to move wheels
      * @param   distance        number of centimeters to move robot
+     * @param   nowait          if @c true, discard waiting commands and interrupt the active motion
      *
      * Possible values of @p action are specified by Sanbot SDK @c DistanceWheelMotion class members
      * (@c ACTION_FORWARD_RUN and @c ACTION_STOP_RUN). Allowed values of @p speed are from 1 to 10.
@@ -176,7 +179,7 @@ public final class SanbotMotionUnit extends BridgeUnit
      * @return  DataResult instance specifying operation result
      */
     @NonNull
-    public synchronized DataResult moveRobotForward(byte action, int speed, int distance)
+    public synchronized DataResult moveRobotForward(byte action, int speed, int distance, boolean nowait)
     {
         if (unitStatus == UnitStatus.EMULATED) return DataResult.emulated();
         if (wheelMotionManager == null) return DataResult.notavailable(FuncConstant.WHEELMOTION_MANAGER);
@@ -186,7 +189,7 @@ public final class SanbotMotionUnit extends BridgeUnit
         int timeout = distance/(10 + 4*speed);
 
         DistanceWheelMotion motion = new DistanceWheelMotion(action, speed, distance);
-        return commandQueue.submit(FuncConstant.WHEEL_MOTION_DISTANCE, motion, timeout);
+        return commandQueue.submit(FuncConstant.WHEEL_MOTION_DISTANCE, motion, nowait, timeout);
     }
 
     /**
@@ -199,6 +202,7 @@ public final class SanbotMotionUnit extends BridgeUnit
      * @param   action          wheels action
      * @param   speed           speed with which to move wheels
      * @param   angle           angle to rotate robot by
+     * @param   nowait          if @c true, discard waiting commands and interrupt the active motion
      *
      * Possible values of @p action are specified by Sanbot SDK @c RelativeAngleWheelMotion class
      * members (@c TURN_LEFT, @c TURN_RIGHT and @c TURN_STOP). Allowed values of @p speed are from 1
@@ -207,7 +211,7 @@ public final class SanbotMotionUnit extends BridgeUnit
      * @return  DataResult instance specifying operation result
      */
     @NonNull
-    public synchronized DataResult turnRobotByAngle(byte action, int speed, int angle)
+    public synchronized DataResult turnRobotByAngle(byte action, int speed, int angle, boolean nowait)
     {
         if (unitStatus == UnitStatus.EMULATED) return DataResult.emulated();
         if (wheelMotionManager == null) return DataResult.notavailable(FuncConstant.WHEELMOTION_MANAGER);
@@ -216,7 +220,7 @@ public final class SanbotMotionUnit extends BridgeUnit
         int timeout = angle/20 + 1;
 
         RelativeAngleWheelMotion motion = new RelativeAngleWheelMotion(action, speed, angle);
-        return commandQueue.submit(FuncConstant.WHEEL_MOTION_RELATIVE_ANGLE, motion, timeout);
+        return commandQueue.submit(FuncConstant.WHEEL_MOTION_RELATIVE_ANGLE, motion, nowait, timeout);
     }
 
     /**
@@ -808,6 +812,12 @@ public final class SanbotMotionUnit extends BridgeUnit
      * Timeout completion advances only queue bookkeeping; it does not send a physical stop command
      * to the robot.
      *
+     * A command whose @c nowait flag is set interrupts this sequence only when another command is
+     * active. All waiting commands are discarded, the active command's timeout is cancelled, and
+     * the new command replaces it immediately. The new SDK call itself interrupts the physical
+     * operation; the queue does not send a separate stop command. If no command is active,
+     * @c nowait has no effect.
+     *
      * Calling cancel() empties the waiting queue and marks the active command as being cancelled.
      * The cancellation state is finalized when the wheel status changes to idle or a timeout
      * expires. Queue mutations and compound state.
@@ -848,31 +858,42 @@ public final class SanbotMotionUnit extends BridgeUnit
         /**
          * Submits a new command to the queue.
          *
-         * A new command is created from the specified motion type and parameters. If a command is
-         * active or cancellation is in progress, the new command is appended to the waiting queue
-         * and a successful @c operation_queued result is returned. Otherwise, the new command is
-         * made active and passed to startCommands(Command).
+         * A new command is created from the specified motion type and parameters. If @p nowait is
+         * true and a command is active, all waiting commands are discarded and the new command
+         * replaces the active command. Otherwise, if a command is active or cancellation is in
+         * progress, the new command is appended to the waiting queue and a successful
+         * @c operation_queued result is returned. If the queue is idle, the new command is made
+         * active normally; in that case @p nowait has no effect.
          *
          * @param   type        motion type as defined in Sanbot @c FuncConstant API
          * @param   params      SDK motion bean whose concrete type is determined by @p type
+         * @param   nowait      if @c true, discard waiting commands and interrupt the active command
          * @param   timeout     command timeout in seconds; a non-positive value disables it
          *
          * @return  DataResult instance specifying operation result
          */
-        private DataResult submit(int type, Object params, int timeout)
+        private DataResult submit(int type, Object params, boolean nowait, int timeout)
         {
             Command command;
             synchronized (this)
             {
-                command = new Command(type, params, timeout);
-                if ((active != null) || (cancelling))
+                command = new Command(type, params, nowait, timeout);
+                if ((command.nowait) && (active != null))
+                {
+                    BridgeLog.debug(TAG, "Motion command " + command.id + " interrupts active command "
+                        + active.id + " and discards " + queue.size() + " queued commands");
+                    queue.clear();
+                    cancelTimeout();
+                    cancelling = false;
+                }
+                else if ((active != null) || (cancelling))
                 {
                     // A command is in progress, so the new command is queued.
                     queue.addLast(command);
                     return DataResult.success("operation_queued", command.getData());
                 }
 
-                // No command in progress, so immediately make new command the active.
+                // Claim the command before releasing the queue monitor and calling the SDK.
                 active = command;
             }
 
@@ -1136,6 +1157,9 @@ public final class SanbotMotionUnit extends BridgeUnit
         /** Motion parameters. */
         final Object params;
 
+        /** True if this command may replace an active command instead of waiting in the queue. */
+        final boolean nowait;
+
         /** Timeout in seconds; a non-positive value disables timeout scheduling. */
         final int timeout;
 
@@ -1150,12 +1174,14 @@ public final class SanbotMotionUnit extends BridgeUnit
          *
          * @param   type        motion type as defined in Sanbot @c FuncConstant API
          * @param   params      SDK motion bean whose concrete type is determined by @p type
+         * @param   nowait      if @c true, discard waiting commands and interrupt the active command
          * @param   timeout     command timeout in seconds; a non-positive value disables it
          */
-        private Command(int type, Object params, int timeout)
+        private Command(int type, Object params, boolean nowait, int timeout)
         {
             this.type = type;
             this.params = params;
+            this.nowait = nowait;
             this.timeout = timeout;
 
             if (counter.get() == Integer.MAX_VALUE) counter.set(COMMAND_COUNT_MIN);
